@@ -1,0 +1,33 @@
+# rtlreviewbot default configuration.
+#
+# Consumer repos may override any of these by placing
+# `.github/rtlreviewbot-config.yml` in their repo. Per-repo values take
+# precedence over the defaults below.
+#
+# Schema is intentionally sparse for v0.1.0 — fields will be added as the
+# implementation lands. Documenting the planned shape here so consumers and
+# implementers have a single source of truth.
+
+# Review behavior
+review:
+  # Maximum diff size (in characters) the bot will attempt to review. PRs
+  # exceeding this will receive a polite skip-comment instead of a blank
+  # approval. Concrete value will be set when the review pipeline lands.
+  max_diff_chars: null
+
+  # Minimum severity that triggers REQUEST_CHANGES (vs COMMENT).
+  # Allowed: blocker, major, minor, nit.
+  request_changes_threshold: major
+
+# Permission model
+permissions:
+  # Roles allowed to invoke `/rtlreviewbot review`. (Other commands have
+  # their own per-command rules — see docs/commands.md.)
+  review_invokers:
+    - maintainer
+
+# Audit fields recorded in the metadata marker comment on every review.
+audit:
+  record_skill_version: true
+  record_model_version: true
+  record_workflow_version: true

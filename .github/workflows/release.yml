@@ -1,0 +1,27 @@
+name: Release
+
+# v0.1.0: stub. A subsequent milestone will wire this to:
+#   - validate the tag matches CHANGELOG.md and SKILL.md versions
+#   - cut a GitHub Release with notes from CHANGELOG.md
+#   - (optionally) publish a moving major-version tag (e.g. v1) for consumers
+#     that want to track the latest non-breaking release
+#
+# Triggers on tag push of the form v*.*.*.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    name: Acknowledge release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log tag
+        run: |
+          echo "Release workflow triggered for tag ${GITHUB_REF#refs/tags/}."
+          echo "Implementation pending."

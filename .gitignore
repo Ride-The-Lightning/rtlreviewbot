@@ -1,0 +1,21 @@
+# Secrets — never commit any private key material.
+*.pem
+*.key
+*.p8
+
+# Working notes (kept locally alongside the repo, not part of the project).
+rtlreviewinfo
+gateway-context-primer.md
+gateway-requirements-v0.2.md
+
+# macOS / editor cruft.
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Test / build artifacts.
+/tmp/
+node_modules/

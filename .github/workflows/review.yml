@@ -1,0 +1,46 @@
+name: rtlreviewbot review (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull request number to review'
+        required: true
+        type: number
+      event_name:
+        description: 'Originating GitHub event (issue_comment, pull_request, pull_request_review)'
+        required: true
+        type: string
+      comment_body:
+        description: 'Comment body, when the event is a comment-driven command'
+        required: false
+        type: string
+        default: ''
+      actor:
+        description: 'Login of the user that triggered the event'
+        required: true
+        type: string
+    secrets:
+      app_id:
+        description: 'rtlreviewbot GitHub App ID (org secret GATEWAY_APP_ID)'
+        required: true
+      private_key:
+        description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY)'
+        required: true
+
+# v0.1.0: this is a stub. The real pipeline (parse command, check permission,
+# fetch PR context, run /code-review skill, post review, update metadata) is
+# implemented in subsequent milestones.
+jobs:
+  noop:
+    name: Acknowledge invocation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log inputs
+        run: |
+          echo "rtlreviewbot review (reusable) invoked."
+          echo "PR:        #${{ inputs.pr_number }}"
+          echo "Event:     ${{ inputs.event_name }}"
+          echo "Actor:     ${{ inputs.actor }}"
+          echo "Comment:   ${{ inputs.comment_body }}"
+          echo "Pipeline implementation pending."
