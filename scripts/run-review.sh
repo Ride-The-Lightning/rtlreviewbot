@@ -34,7 +34,7 @@
 set -euo pipefail
 
 readonly SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; readonly SCRIPT_DIR
 
 log() {
   local level="$1" event="$2" outcome="$3"
