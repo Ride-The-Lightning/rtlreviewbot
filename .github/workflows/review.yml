@@ -1,46 +1,89 @@
 name: rtlreviewbot review (reusable)
 
+# Reusable workflow invoked by consumer repos via `uses:`. The consumer
+# shim catches GitHub events and forwards normalized inputs to this file.
+
 on:
   workflow_call:
     inputs:
-      pr_number:
-        description: 'Pull request number to review'
-        required: true
-        type: number
       event_name:
-        description: 'Originating GitHub event (issue_comment, pull_request, pull_request_review)'
+        description: 'GitHub event that triggered the consumer shim (issue_comment, pull_request)'
         required: true
         type: string
-      comment_body:
-        description: 'Comment body, when the event is a comment-driven command'
+      event_action:
+        description: 'Event-specific action (e.g. created, review_requested, closed)'
         required: false
         type: string
         default: ''
+      repo:
+        description: 'Consumer repo in owner/name form (e.g. github.repository)'
+        required: true
+        type: string
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: number
       actor:
         description: 'Login of the user that triggered the event'
         required: true
         type: string
+      comment_body:
+        description: 'Body of the triggering comment, for issue_comment events'
+        required: false
+        type: string
+        default: ''
+      installation_id:
+        description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
+        required: true
+        type: number
+      ref:
+        description: 'rtlreviewbot ref (tag/sha) to check out. Pin to a release tag in production.'
+        required: false
+        type: string
+        default: 'main'
     secrets:
       app_id:
-        description: 'rtlreviewbot GitHub App ID (org secret GATEWAY_APP_ID)'
+        description: 'rtlreviewbot GitHub App ID (org secret GATEWAY_APP_ID).'
         required: true
       private_key:
-        description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY)'
+        description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY).'
+        required: true
+      anthropic_api_key:
+        description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY).'
         required: true
 
-# v0.1.0: this is a stub. The real pipeline (parse command, check permission,
-# fetch PR context, run /code-review skill, post review, update metadata) is
-# implemented in subsequent milestones.
+permissions:
+  # The reusable workflow itself needs no special token permissions — every
+  # GitHub call is made via the App installation token minted at runtime.
+  contents: read
+
 jobs:
-  noop:
-    name: Acknowledge invocation
+  review:
+    name: Run rtlreviewbot
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Log inputs
+      - name: Checkout rtlreviewbot
+        uses: actions/checkout@v4
+        with:
+          repository: Ride-The-Lightning/rtlreviewbot
+          ref: ${{ inputs.ref }}
+          path: rtlreviewbot
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run rtlreviewbot
+        env:
+          GATEWAY_APP_ID: ${{ secrets.app_id }}
+          GATEWAY_PRIVATE_KEY: ${{ secrets.private_key }}
+          GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}
+          ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
         run: |
-          echo "rtlreviewbot review (reusable) invoked."
-          echo "PR:        #${{ inputs.pr_number }}"
-          echo "Event:     ${{ inputs.event_name }}"
-          echo "Actor:     ${{ inputs.actor }}"
-          echo "Comment:   ${{ inputs.comment_body }}"
-          echo "Pipeline implementation pending."
+          rtlreviewbot/scripts/run-review.sh \
+            --event-name   "${{ inputs.event_name }}" \
+            --event-action "${{ inputs.event_action }}" \
+            --repo         "${{ inputs.repo }}" \
+            --pr           "${{ inputs.pr_number }}" \
+            --actor        "${{ inputs.actor }}" \
+            --comment-body "${{ inputs.comment_body }}"

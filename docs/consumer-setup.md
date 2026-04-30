@@ -108,10 +108,15 @@ Org Settings → Secrets and variables → Actions → New organization secret.
 |---|---|---|
 | `GATEWAY_APP_ID` | the numeric App ID from Step 7 | Selected repositories — start narrow |
 | `GATEWAY_PRIVATE_KEY` | full PEM contents (include `-----BEGIN…-----` and `-----END…-----` lines) | Selected repositories — start narrow |
+| `ANTHROPIC_API_KEY` | Anthropic API key with access to the configured Claude model | Selected repositories — start narrow |
 
-> The secret names retain the `GATEWAY_` prefix from the original architecture
-> primer. The visible bot identity is rtlreviewbot; the secret names are an
-> internal implementation detail.
+> The `GATEWAY_` prefix on the App-credential secrets is retained from the
+> original architecture primer. The visible bot identity is rtlreviewbot;
+> the secret names are an internal implementation detail.
+>
+> `ANTHROPIC_API_KEY` is the API key the `/code-review` skill uses to call
+> Claude. Treat it as a real secret — it's billed against your Anthropic
+> account whenever the bot runs.
 
 Installation IDs are **not** secrets — they are not sensitive and can be
 discovered at runtime via `GET /app/installations`.
@@ -166,14 +171,60 @@ add the consumer repo to the selected-repositories list.
 
 ### Step 3 — Add the workflow shim to the consumer repo
 
-> **Placeholder — this section will be completed when the reusable workflow
-> body lands in a subsequent milestone.** The shim will be roughly 30 lines
-> of YAML that:
->
-> - Triggers on `issue_comment`, `pull_request`, and `pull_request_review`
-> - Calls the rtlreviewbot reusable workflow at a pinned tag
->   (`Ride-The-Lightning/rtlreviewbot/.github/workflows/review.yml@v<X.Y.Z>`)
-> - Forwards the App credentials as `secrets`
+Drop the following file at `.github/workflows/rtlreviewbot.yml` in the
+consumer repo. It catches the relevant GitHub events and forwards
+normalized inputs to the reusable workflow.
+
+```yaml
+name: rtlreviewbot
+
+# rtlreviewbot fires on:
+#   - issue_comment.created      — a /rtl <command> comment on a PR
+#   - pull_request.review_requested — the GitHub Re-request review button
+#   - pull_request.closed        — cleanup on close/merge
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [review_requested, closed]
+
+permissions:
+  # The reusable workflow uses an App installation token internally; the
+  # GITHUB_TOKEN handed to this shim is unused, so we minimise it.
+  contents: read
+
+jobs:
+  review:
+    # issue_comment fires for any issue. Filter to PR comments only.
+    if: ${{ github.event_name != 'issue_comment' || github.event.issue.pull_request != null }}
+    uses: Ride-The-Lightning/rtlreviewbot/.github/workflows/review.yml@v0.5.0
+    with:
+      event_name:      ${{ github.event_name }}
+      event_action:    ${{ github.event.action }}
+      repo:            ${{ github.repository }}
+      pr_number:       >-
+        ${{ github.event.issue.number || github.event.pull_request.number }}
+      actor:           ${{ github.event.sender.login }}
+      comment_body:    ${{ github.event.comment.body }}
+      installation_id: 127679607          # see Part 2 Step 1
+      ref:             v0.5.0             # pin to a release tag in production
+    secrets:
+      app_id:            ${{ secrets.GATEWAY_APP_ID }}
+      private_key:       ${{ secrets.GATEWAY_PRIVATE_KEY }}
+      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Notes:
+
+- **Pin the `uses:` ref and `ref:` input to the same release tag.** They
+  both control which version of rtlreviewbot runs; mismatched values
+  cause subtle drift. The example uses `v0.5.0` as a placeholder — pin
+  to whatever tag matches the rtlreviewbot release you're consuming.
+- **`installation_id`** is the consumer-repo-specific App installation
+  ID from Part 2 Step 1. It's not a secret — the architecture primer
+  explains why; treat it as a hard-coded literal in the shim.
+- **`ANTHROPIC_API_KEY`** must be added to the consumer repo's secret
+  scope alongside `GATEWAY_APP_ID` and `GATEWAY_PRIVATE_KEY`.
 
 ### Step 4 — Optional per-repo configuration
 
