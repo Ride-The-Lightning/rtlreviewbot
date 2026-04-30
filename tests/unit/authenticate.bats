@@ -8,6 +8,8 @@
 # generated per test in setup() — we never store a private key in the repo,
 # even a fake one.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   TEST_TMP="$(mktemp -d)"
   export TEST_TMP
@@ -89,7 +91,7 @@ extract_jwt() {
 # ---------------------------------------------------------------------------
 
 @test "happy path: emits {token, expires_at} JSON on stdout, exit 0" {
-  run bash "$REPO_ROOT/scripts/authenticate.sh"
+  run --separate-stderr bash "$REPO_ROOT/scripts/authenticate.sh"
   [ "$status" -eq 0 ]
   [ -n "$output" ]
 
@@ -222,7 +224,7 @@ fi
 STUB
   chmod +x "$TEST_TMP/bin/curl"
 
-  run bash "$REPO_ROOT/scripts/authenticate.sh"
+  run --separate-stderr bash "$REPO_ROOT/scripts/authenticate.sh"
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.token == "ghs_retry_token"' >/dev/null
 

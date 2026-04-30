@@ -9,6 +9,8 @@
 #     while writing the GitHub-style "HTTP <status>" message to stderr (which
 #     is what real `gh` does and what the script greps for).
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   TEST_TMP="$(mktemp -d)"
   export TEST_TMP
@@ -96,7 +98,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "admin user passes write check" {
   set_mode 200_admin
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.passed == true' >/dev/null
@@ -107,7 +109,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "write user passes write check" {
   set_mode 200_write
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.passed == true' >/dev/null
@@ -115,7 +117,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "admin user passes admin check" {
   set_mode 200_admin
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level admin
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.passed == true' >/dev/null
@@ -123,7 +125,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "read user passes read check" {
   set_mode 200_read
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.passed == true' >/dev/null
@@ -135,7 +137,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "read user is denied write" {
   set_mode 200_read
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.passed == false' >/dev/null
@@ -144,7 +146,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "write user is denied admin" {
   set_mode 200_write
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level admin
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.passed == false' >/dev/null
@@ -152,7 +154,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "404 (non-collaborator on private repo) treated as none, denies read" {
   set_mode 404
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user randomuser --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.permission == "none"' >/dev/null
@@ -161,7 +163,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "403 treated as none, denies read" {
   set_mode 403
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user randomuser --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 1 ]
   echo "$output" | jq -e '.permission == "none"' >/dev/null
@@ -173,28 +175,28 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "5xx from API exits 2 (fail closed, never fail open)" {
   set_mode 500
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
 
 @test "network failure from gh exits 2" {
   set_mode network
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
 
 @test "200 with unrecognized .permission value exits 2" {
   set_mode 200_unknown
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
 
 @test "200 missing .permission field exits 2" {
   set_mode 200_no_field
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
@@ -204,50 +206,50 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 # ---------------------------------------------------------------------------
 
 @test "missing --user exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
 
 @test "missing --repo exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --level read
   [ "$status" -eq 2 ]
 }
 
 @test "missing --level exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web
   [ "$status" -eq 2 ]
 }
 
 @test "invalid --level exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level superuser
   [ "$status" -eq 2 ]
 }
 
 @test "invalid --repo format exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo not-a-repo --level read
   [ "$status" -eq 2 ]
 }
 
 @test "invalid --user format exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user 'bad name with spaces' --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 2 ]
 }
 
 @test "App-style [bot] suffix in --user is accepted" {
   set_mode 200_write
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user 'rtlreview[bot]' --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
 }
 
 @test "unknown argument exits 2" {
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read --extra foo
   [ "$status" -eq 2 ]
 }
@@ -259,13 +261,13 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 @test "second call for same user/repo is served from cache (no second API call)" {
   set_mode 200_write
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.cached == false' >/dev/null
   [ "$(call_count)" = "1" ]
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.cached == true' >/dev/null
@@ -275,12 +277,12 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 @test "different --level for same user shares the cached permission" {
   set_mode 200_admin
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 0 ]
   [ "$(call_count)" = "1" ]
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level admin
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.cached == true' >/dev/null
@@ -290,11 +292,11 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 @test "different user does NOT share cache" {
   set_mode 200_write
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user bob --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
   [ "$(call_count)" = "2" ]
@@ -303,11 +305,11 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 @test "different repo does NOT share cache (no path collision)" {
   set_mode 200_write
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level write
   [ "$status" -eq 0 ]
 
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/lnd --level write
   [ "$status" -eq 0 ]
   [ "$(call_count)" = "2" ]
@@ -319,7 +321,7 @@ call_count() { wc -l < "$TEST_TMP/call_log" | tr -d ' '; }
 
 @test "request targets the correct API path" {
   set_mode 200_admin
-  run bash "$REPO_ROOT/scripts/check-permission.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/check-permission.sh" \
     --user alice --repo Ride-The-Lightning/RTL-Web --level read
   [ "$status" -eq 0 ]
   grep -F 'api repos/Ride-The-Lightning/RTL-Web/collaborators/alice/permission' \

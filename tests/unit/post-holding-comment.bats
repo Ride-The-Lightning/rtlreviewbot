@@ -6,6 +6,8 @@
 # shape — list (GET /issues/N/comments) vs post (-X POST). Both responses
 # come from per-test fixture files so each test can set up the world it needs.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   TEST_TMP="$(mktemp -d)"
   export TEST_TMP
@@ -82,7 +84,7 @@ post_call_count() {
 # ---------------------------------------------------------------------------
 
 @test "posts a new holding comment when none exists, returns id+url" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.comment_id == 999' >/dev/null
@@ -91,14 +93,14 @@ post_call_count() {
 }
 
 @test "POST goes to the correct endpoint" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   grep -Fx 'repos/Ride-The-Lightning/RTL-Web/issues/42/comments' "$TEST_TMP/post_args.txt"
 }
 
 @test "posted body contains the rtl-holding marker" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   # The marker should appear in the body= field passed to gh.
@@ -106,14 +108,14 @@ post_call_count() {
 }
 
 @test "default body includes the 'review starting' phrase" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   grep -F 'review starting' "$TEST_TMP/post_args.txt"
 }
 
 @test "custom --body is sent verbatim alongside the marker" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42 \
     --body 'queued — back in a minute'
   [ "$status" -eq 0 ]
@@ -133,7 +135,7 @@ post_call_count() {
 ]
 JSON
 
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.comment_id == 222' >/dev/null
@@ -149,7 +151,7 @@ JSON
 ]
 JSON
 
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.created == true' >/dev/null
@@ -164,7 +166,7 @@ JSON
 ]
 JSON
 
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 0 ]
   echo "$output" | jq -e '.created == true' >/dev/null
@@ -177,7 +179,7 @@ JSON
 @test "list-comments API failure exits 2" {
   printf '1' > "$TEST_TMP/list_exit"
   printf 'gh: Internal Server Error (HTTP 500)\n' > "$TEST_TMP/list_stderr"
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 2 ]
 }
@@ -185,14 +187,14 @@ JSON
 @test "POST failure exits 2" {
   printf '1' > "$TEST_TMP/post_exit"
   printf 'gh: Forbidden (HTTP 403)\n' > "$TEST_TMP/post_stderr"
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 2 ]
 }
 
 @test "POST returns malformed JSON exits 2" {
   printf '%s' 'not json at all' > "$TEST_TMP/post_response.json"
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 42
   [ "$status" -eq 2 ]
 }
@@ -202,29 +204,29 @@ JSON
 # ---------------------------------------------------------------------------
 
 @test "missing --repo exits 2" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" --pr 42
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" --pr 42
   [ "$status" -eq 2 ]
 }
 
 @test "missing --pr exits 2" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" --repo Ride-The-Lightning/RTL-Web
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" --repo Ride-The-Lightning/RTL-Web
   [ "$status" -eq 2 ]
 }
 
 @test "non-numeric --pr exits 2" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr forty-two
   [ "$status" -eq 2 ]
 }
 
 @test "invalid --repo format exits 2" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo not-a-repo --pr 1
   [ "$status" -eq 2 ]
 }
 
 @test "unknown argument exits 2" {
-  run bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
+  run --separate-stderr bash "$REPO_ROOT/scripts/post-holding-comment.sh" \
     --repo Ride-The-Lightning/RTL-Web --pr 1 --unexpected foo
   [ "$status" -eq 2 ]
 }

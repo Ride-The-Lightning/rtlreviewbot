@@ -5,6 +5,8 @@
 # parse-command.sh has no I/O dependencies — it reads stdin and writes stdout
 # — so tests are pure: feed a body in, assert the JSON shape on stdout.
 
+bats_require_minimum_version 1.5.0
+
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   export REPO_ROOT
