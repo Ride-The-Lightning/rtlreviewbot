@@ -246,12 +246,15 @@ fi
 
 log info invoke_claude attempt "$(jq -cn --arg m "$MODEL" '{model:$m}')"
 
-# `claude -p <prompt>` is the non-interactive one-shot form. We pipe the
-# prompt via stdin to avoid hitting argv length limits on large diffs.
-# The CLI exits non-zero on any error (auth, network, model overload).
+# Non-interactive Claude Code: `claude -p` reads the prompt from stdin and
+# prints the assistant response to stdout. Piping rather than passing the
+# prompt as an argument avoids two problems: (1) the CLI's argparser
+# rejects values that start with `--` (our SKILL.md leads with YAML
+# frontmatter that starts with `---`), and (2) argv length limits on
+# 200k-character diffs.
 invoke_claude() {
-  claude --model "$MODEL" -p "$(cat "$PROMPT_FILE")" \
-    >"$REVIEW_OUT" 2>"$ERR_FILE"
+  claude --model "$MODEL" -p \
+    <"$PROMPT_FILE" >"$REVIEW_OUT" 2>"$ERR_FILE"
 }
 
 attempt=1
