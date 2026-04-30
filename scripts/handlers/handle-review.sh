@@ -244,7 +244,14 @@ fi
   printf '\n```\n'
 } > "$PROMPT_FILE"
 
-log info invoke_claude attempt "$(jq -cn --arg m "$MODEL" '{model:$m}')"
+# One-time diagnostic: log the CLI's version and resolved path. Helps
+# debug "is claude even installed" / "which version is on PATH" without
+# needing to repro inside the runner.
+CLAUDE_BIN="$(command -v claude 2>/dev/null || echo '<not-found>')"
+CLAUDE_VERSION="$(claude --version 2>&1 | head -n1 || echo '<unavailable>')"
+log info invoke_claude environment "$(jq -cn \
+  --arg bin "$CLAUDE_BIN" --arg ver "$CLAUDE_VERSION" --arg m "$MODEL" \
+  '{bin:$bin, version:$ver, model:$m}')"
 
 # Non-interactive Claude Code: `claude -p` reads the prompt from stdin and
 # prints the assistant response to stdout. Piping rather than passing the
@@ -260,21 +267,34 @@ invoke_claude() {
 attempt=1
 max_attempts=2
 claude_ok=false
+claude_exit=0
 while (( attempt <= max_attempts )); do
   if invoke_claude; then
     claude_ok=true
     break
   fi
+  claude_exit=$?
   if (( attempt < max_attempts )); then
-    log warn invoke_claude retry "$(jq -cn --argjson n "$attempt" '{attempt:$n}')"
+    log warn invoke_claude retry "$(jq -cn \
+      --argjson n "$attempt" --argjson code "$claude_exit" \
+      '{attempt:$n, exit_code:$code}')"
     sleep 5
   fi
   attempt=$((attempt + 1))
 done
 
 if ! "$claude_ok"; then
-  err="$(tr '\n' ' ' <"$ERR_FILE" 2>/dev/null || true)"
-  fail_with_holding "code-review skill failed after retry: ${err:-unknown}" invoke_claude
+  # Some CLIs surface errors on stdout instead of stderr (or write to
+  # both). Capture both, truncated, so the failure log gives the operator
+  # something concrete to act on.
+  err_excerpt="$(head -c 1500 "$ERR_FILE"   2>/dev/null | tr '\n' ' ' || true)"
+  out_excerpt="$(head -c 1500 "$REVIEW_OUT" 2>/dev/null | tr '\n' ' ' || true)"
+  log error invoke_claude full_failure "$(jq -cn \
+    --argjson code "$claude_exit" \
+    --arg     stderr "$err_excerpt" \
+    --arg     stdout "$out_excerpt" \
+    '{exit_code:$code, stderr:$stderr, stdout:$stdout}')"
+  fail_with_holding "code-review skill failed after retry (exit ${claude_exit}): ${err_excerpt:-${out_excerpt:-no output}}" invoke_claude
 fi
 
 # ---------------------------------------------------------------------------
