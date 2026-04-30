@@ -269,11 +269,15 @@ max_attempts=2
 claude_ok=false
 claude_exit=0
 while (( attempt <= max_attempts )); do
+  # Capture exit code via the else branch. After `fi`, bash sets $? to 0
+  # when no branch ran (per the man page rule "or zero if no condition
+  # tested true"), which would mask the actual failure code.
   if invoke_claude; then
     claude_ok=true
     break
+  else
+    claude_exit=$?
   fi
-  claude_exit=$?
   if (( attempt < max_attempts )); then
     log warn invoke_claude retry "$(jq -cn \
       --argjson n "$attempt" --argjson code "$claude_exit" \
