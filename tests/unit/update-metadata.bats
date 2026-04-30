@@ -207,9 +207,10 @@ JSON
   [ "$(cat "$TEST_TMP/last_method")" = "POST" ]
 
   # The body sent to GitHub must contain the open and close sentinels and
-  # be valid JSON between them.
+  # be valid JSON between them. The `--` terminator is required because
+  # GNU grep parses `-->` as an option otherwise.
   grep -F '<!-- rtlreviewbot-meta' "$TEST_TMP/last_body_file_copy"
-  grep -Fx '-->' "$TEST_TMP/last_body_file_copy"
+  grep -Fx -- '-->' "$TEST_TMP/last_body_file_copy"
   awk '/<!-- rtlreviewbot-meta/{f=1;next}/-->/{f=0;next}f' \
     "$TEST_TMP/last_body_file_copy" | jq -e '.last_reviewed_sha == "abc"' >/dev/null
 }
