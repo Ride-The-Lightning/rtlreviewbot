@@ -12,12 +12,12 @@ itself is placeholder-only at this stage.
 
 ## What it does (planned)
 
-A maintainer comments `/rtlreviewbot review` on a PR. The bot:
+A maintainer comments `/rtl review` on a PR. The bot:
 
 1. Posts a holding comment within ~10s
 2. Runs the `code-review` skill against the PR diff
 3. Posts a formal GitHub PR review (body + inline comments + verdict)
-4. Marks the PR with the `rtlreviewbot-active` label
+4. Marks the PR with the `rtl-active` label
 5. Records audit metadata in a hidden marker comment
 
 After the initial invocation, developers control re-review cadence using
@@ -34,7 +34,7 @@ auto-triggered on every PR.
 | `.github/workflows/ci.yml` | Lint + unit tests for this repo |
 | `skills/code-review/` | Skill definition, prompts, and domain rules |
 | `scripts/` | Bash orchestration scripts (one per pipeline step) |
-| `scripts/handlers/` | One script per supported `/rtlreviewbot` command |
+| `scripts/handlers/` | One script per supported `/rtl` command |
 | `config/defaults.yml` | Default configuration (overridable per consumer repo) |
 | `tests/{unit,integration,fixtures}/` | bats unit tests, integration suite, sample data |
 | `docs/` | Setup guide, command reference, architecture, troubleshooting |

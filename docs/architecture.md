@@ -6,7 +6,7 @@ This document will cover:
 
 - The three-layer architecture (GitHub App, this repo, consumer repos)
 - The reusable workflow execution model
-- State model: PR labels (`rtlreviewbot-active`, `rtlreviewbot-paused`) and
+- State model: PR labels (`rtl-active`, `rtl-paused`) and
   the hidden `rtlreviewbot-meta` marker comment
 - Finding ID lifecycle and statuses
 - Security constraints (fork safety, token scope, audit trail)

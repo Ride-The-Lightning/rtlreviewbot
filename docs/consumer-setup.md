@@ -74,7 +74,7 @@ Default everything to **No access**. Only change:
 
 | Permission | Access | Why |
 |---|---|---|
-| Members | Read-only | Permission checks for `/rtlreviewbot` commands |
+| Members | Read-only | Permission checks for `/rtl` commands |
 
 > Note: GitHub bundles "PR reviews write" into "Pull requests: Read & write" —
 > there is no separate toggle. The set above covers everything the bot needs.
