@@ -1,0 +1,4 @@
+[
+  {"id": 3001, "user": {"login": "rtlreview[bot]"}, "body": "Initial review — 1 major, 1 minor.", "state": "COMMENTED", "submitted_at": "2026-04-29T10:05:00Z"},
+  {"id": 3002, "user": {"login": "carol"},           "body": "LGTM after the nil-check fix.",      "state": "APPROVED",  "submitted_at": "2026-04-29T10:30:00Z"}
+]

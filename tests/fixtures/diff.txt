@@ -1,0 +1,26 @@
+diff --git a/src/htlc.go b/src/htlc.go
+index 1234567..89abcde 100644
+--- a/src/htlc.go
++++ b/src/htlc.go
+@@ -10,6 +10,8 @@ import (
+ )
+
+ func Settle(h *HTLC) error {
++    if h == nil {
++        return ErrNil
++    }
+     return h.commit()
+ }
+diff --git a/src/htlc_test.go b/src/htlc_test.go
+index abcdef0..1234567 100644
+--- a/src/htlc_test.go
++++ b/src/htlc_test.go
+@@ -1,3 +1,16 @@
+ package channel
+
++func TestSettleNil(t *testing.T) {
++    err := Settle(nil)
++    if err != ErrNil {
++        t.Fatalf("expected ErrNil, got %v", err)
++    }
++}

@@ -1,0 +1,5 @@
+[
+  {"id": 2001, "user": {"login": "rtlreview[bot]"}, "body": "F1 (major): nil-check on h is missing — Settle will panic on a nil HTLC.", "path": "src/htlc.go",      "line": 12, "in_reply_to_id": null, "created_at": "2026-04-29T10:05:00Z"},
+  {"id": 2002, "user": {"login": "alice"},           "body": "good catch — added in 89abcde",                                            "path": "src/htlc.go",      "line": 12, "in_reply_to_id": 2001, "created_at": "2026-04-29T10:10:00Z"},
+  {"id": 2003, "user": {"login": "rtlreview[bot]"}, "body": "F2 (minor): consider testing the channel-closing concurrency case.",       "path": "src/htlc_test.go", "line": 5,  "in_reply_to_id": null, "created_at": "2026-04-29T10:05:00Z"}
+]

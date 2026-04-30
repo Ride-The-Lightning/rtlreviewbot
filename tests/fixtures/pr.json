@@ -1,0 +1,10 @@
+{
+  "number": 42,
+  "title": "Fix HTLC settlement edge case",
+  "body": "Closes #123. Adjusts the timeout window so a stuck HTLC can be cleared safely.",
+  "state": "open",
+  "user": {"login": "alice"},
+  "base": {"sha": "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111", "ref": "main"},
+  "head": {"sha": "bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222", "ref": "feature/htlc-fix"},
+  "draft": false
+}

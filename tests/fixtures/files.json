@@ -1,0 +1,4 @@
+[
+  {"filename": "src/htlc.go",      "additions": 3,  "deletions": 0, "status": "modified"},
+  {"filename": "src/htlc_test.go", "additions": 13, "deletions": 0, "status": "modified"}
+]
