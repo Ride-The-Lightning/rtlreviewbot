@@ -38,10 +38,10 @@ inputs:
     description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
     required: true
   app_id:
-    description: 'rtlreviewbot GitHub App ID (org secret GATEWAY_APP_ID). Pass via with: app_id: ${{ secrets.GATEWAY_APP_ID }}.'
+    description: 'rtlreviewbot GitHub App ID. Consumers pass this via `with: app_id:` from their org secret (typically GATEWAY_APP_ID).'
     required: true
   private_key:
-    description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY). Pass via with: private_key: ${{ secrets.GATEWAY_PRIVATE_KEY }}.'
+    description: 'rtlreviewbot GitHub App private key, PEM contents. Consumers pass this via `with: private_key:` from their org secret (typically GATEWAY_PRIVATE_KEY).'
     required: true
   anthropic_api_key:
     description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY). Either this or claude_code_oauth_token must be set; if both are set, API is tried first and OAuth is the fallback.'
