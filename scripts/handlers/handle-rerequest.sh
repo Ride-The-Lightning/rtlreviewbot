@@ -1,34 +1,31 @@
 #!/usr/bin/env bash
 #
-# handle-rerequest.sh — invoked when the GitHub Re-request review button
-# is clicked with rtlreviewbot as the requested reviewer (FR-2 trigger).
+# handle-rerequest.sh — invoked when GitHub fires a `pull_request`
+# `review_requested` event with the bot as the requested reviewer.
 #
-# Stub for M5: posts a comment letting the requester know the re-review
-# pipeline is not wired up yet, and that they should re-run /rtl review
-# in the meantime. Full implementation (rate-limit gate, prior-finding
-# diff, status assignment) lands in a later milestone.
+# In practice this event does not fire for our bot today: GitHub's
+# `requested_reviewers` API silently rejects App accounts, so the bot
+# is never in the reviewers sidebar where the Re-request review button
+# lives. The reusable workflow listens for this event anyway as
+# forward-compat (in case GitHub ever opens up App reviewers); this
+# handler is the no-op landing spot if it does fire.
+#
+# Stub for M5: silent no-op. The canonical re-review trigger is the
+# `/rtl re-review` comment command, handled by handle-re-review.sh
+# (also a stub at present — wiring it up is the next natural milestone).
 
 set -euo pipefail
 
 readonly SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
 
-REPO=""; PR=""
 while (( $# > 0 )); do
   case "$1" in
-    --repo) REPO="$2"; shift 2 ;;
-    --pr)   PR="$2";   shift 2 ;;
-    --actor|--bot-login|--args) shift 2 ;;
+    --repo|--pr|--actor|--bot-login|--args) shift 2 ;;
     *) shift ;;
   esac
 done
 
-printf '{"level":"info","script":"%s","event":"handle_rerequest","outcome":"not_implemented"}\n' \
+printf '{"level":"info","script":"%s","event":"handle_rerequest","outcome":"no_op_event_unsupported_for_apps"}\n' \
   "$SCRIPT_NAME" >&2
-
-if [[ -n "$REPO" && -n "$PR" ]]; then
-  gh api -X POST "repos/${REPO}/issues/${PR}/comments" \
-    -f "body=Re-request review noted, but the re-review flow is not yet implemented in this version of rtlreviewbot. As a workaround, a maintainer can run \`/rtl review\` again." \
-    >/dev/null 2>&1 || true
-fi
 
 exit 0

@@ -6,18 +6,21 @@ the design before any production deployment.
 
 ## Status
 
-**v0.5.0 — first end-to-end-capable release.** The `/rtl review` flow is
-wired top to bottom: the dispatcher authenticates as the App, parses the
-command, gates on maintainer permission, fetches PR context, invokes the
-`code-review` skill, parses the structured output, posts a formal review,
-applies the `rtl-active` label, and writes the metadata marker. Other
-commands (`stop`, `pause`, `resume`, `dismiss`, `explain`, `re-review`,
-plus the `Re-request review` flow and PR-close cleanup) route correctly
-but reply with a "not yet implemented" comment — full implementations
-land in subsequent milestones.
+**v0.5.5 — first end-to-end-capable release, smoke-tested.** The `/rtl
+review` flow is wired top to bottom: the dispatcher authenticates as the
+App, parses the command, gates on maintainer permission, fetches PR
+context, invokes the `code-review` skill (with API-key → OAuth-token
+auth fallback), parses the structured output, posts a formal review,
+applies the `rtl-active` label, and writes the metadata marker. Smoke-
+tested against a real sandbox PR. Other commands (`stop`, `pause`,
+`resume`, `dismiss`, `explain`, `re-review`, plus PR-close cleanup)
+route correctly but reply with a "not yet implemented" comment — full
+implementations land in subsequent milestones.
 
-GitHub App is registered (`rtlreview`, App ID 3524153). The first
-end-to-end smoke test against a real PR is the natural next step; see
+GitHub App is registered (`rtlreview`, App ID 3524153). Re-reviews are
+driven by the `/rtl re-review` comment command (GitHub's native
+Re-request review button does not work for App reviewers — see
+[`docs/commands.md`](docs/commands.md)). See
 [`docs/consumer-setup.md`](docs/consumer-setup.md) for the consumer-repo
 shim and [`CHANGELOG.md`](CHANGELOG.md) for the per-milestone breakdown.
 
@@ -31,8 +34,11 @@ A maintainer comments `/rtl review` on a PR. The bot:
 4. Marks the PR with the `rtl-active` label
 5. Records audit metadata in a hidden marker comment
 
-After the initial invocation, developers control re-review cadence using
-GitHub's native **Re-request review** button.
+After the initial invocation, developers control re-review cadence by
+posting `/rtl re-review` on the PR. (GitHub's native **Re-request review**
+button does not work for GitHub App reviewers — the API silently rejects
+App accounts in the requested-reviewers list — so the bot's success
+comment ends with a CTA pointing at the comment command.)
 
 The bot is **not** an auto-approver, **not** a merge gate, and **not**
 auto-triggered on every PR.

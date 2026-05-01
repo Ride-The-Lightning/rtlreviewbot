@@ -10,9 +10,16 @@ How maintainers and PR authors interact with rtlreviewbot.
 ## Invocation
 
 rtlreviewbot is **maintainer-invoked**. The first time a PR is reviewed, a
-maintainer comments `/rtl review`. After that, the author (or anyone with
-push access) re-runs the review by clicking GitHub's **Re-request review**
-button — comment commands are not needed for routine re-reviews.
+maintainer comments `/rtl review`. After that, anyone with `write` access
+(or the PR author, or any user for `explain`) drives further behavior via
+the comment commands listed below — most importantly, `/rtl re-review` to
+re-review against current HEAD after pushing changes.
+
+> **Note:** Re-reviews are **comment-driven**, not button-driven. GitHub's
+> native "Re-request review" UI button does not work for GitHub App
+> reviewers — the underlying API silently rejects App accounts in the
+> requested-reviewers list. The bot's success comment includes a `/rtl
+> re-review` CTA so users have a single, obvious path.
 
 Comments on PRs that don't yet carry the `rtl-active` label are ignored,
 with the single exception of the initial `/rtl review`.
@@ -26,8 +33,7 @@ with the single exception of the initial `/rtl review`.
 | `/rtl pause` / `/rtl resume` | maintainer or author | Temporarily deactivate / reactivate |
 | `/rtl dismiss <id>` | maintainer | Stop flagging a specific finding |
 | `/rtl explain <id>` | anyone | Elaborate on a finding (no new review) |
-| `/rtl re-review` | maintainer | Force fresh review without rate-limit |
-| Re-request review (UI button) | author or anyone with push | Re-review against current HEAD |
+| `/rtl re-review` | maintainer | Re-review against current HEAD (the canonical re-review path — see invocation note above) |
 
 ## Recognition rules
 
@@ -64,8 +70,8 @@ The first-time review for a PR. Adds the `rtl-active` label and runs the
 `code-review` skill against the current diff, then posts a formal GitHub
 review (body + inline comments + verdict).
 
-Subsequent reviews on the same PR should use Re-request review or
-`/rtl re-review` rather than re-issuing `/rtl review`.
+Subsequent reviews on the same PR should use `/rtl re-review` rather
+than re-issuing `/rtl review`.
 
 ### `/rtl stop`
 
@@ -76,8 +82,9 @@ again.
 ### `/rtl pause` / `/rtl resume`
 
 Temporary off-switch. `/rtl pause` adds the `rtl-paused` label while leaving
-`rtl-active` in place; while paused, Re-request review events are no-ops.
-`/rtl resume` removes `rtl-paused`.
+`rtl-active` in place; while paused, `/rtl re-review` invocations are
+acknowledged but no-op until `/rtl resume`. `/rtl resume` removes
+`rtl-paused`.
 
 Use when a PR is undergoing rapid churn and the author doesn't want
 intermediate reviews.
@@ -106,19 +113,30 @@ Example: `/rtl explain F3`
 
 ### `/rtl re-review`
 
-Forces a fresh review of the current HEAD, bypassing the standard rate
-limit. Use when a maintainer needs an immediate re-review (e.g. after a
-late fix that should clear blockers before merge).
+The canonical way to re-review a PR against current HEAD after the
+author has pushed changes. The bot acknowledges what was addressed
+since the prior review, restates anything still unresolved, and adds
+new findings introduced by the new commits.
 
-The standard re-review path (Re-request review button) is rate-limited to
-one re-review per 5 minutes per PR; this command is the escape hatch.
+GitHub's native "Re-request review" UI button does not target GitHub
+App reviewers (the API silently rejects App accounts on the requested-
+reviewers endpoint), so this comment command is the supported re-review
+path. Every successful `/rtl review` ends with a CTA pointing at it.
+
+A 5-minute rate limit applies per PR — runs more frequent than that
+post a brief acknowledgement instead of a fresh review.
 
 ## Other triggers (not comment commands)
 
 | Trigger | Source | Behavior |
 |---|---|---|
-| Re-request review button | GitHub UI | Re-runs review against current HEAD on a PR with `rtl-active`. Rate-limited to one re-review per 5 minutes per PR. |
 | PR closed / merged | system event | Auto-deactivates: removes `rtl-active` and `rtl-paused`, records final status in the metadata marker. |
+
+> The reusable workflow also listens for `pull_request` `review_requested`
+> events for forward-compatibility, but they currently do not fire for the
+> bot — see the invocation note above for why. The listener is harmless;
+> if GitHub ever supports App accounts in the requested-reviewers API, the
+> trigger will start working without code changes.
 
 ## What is not recognized
 

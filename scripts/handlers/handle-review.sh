@@ -25,10 +25,11 @@
 #   6. Parse Claude's output into structured JSON.
 #   7. Post the formal review (post-review.sh).
 #   8. Apply the rtl-active label.
-#   9. Best-effort: add the bot as a requested reviewer (enables the
-#      Re-request review button → FR-2 trigger).
-#   10. Write the metadata marker (update-metadata.sh).
-#   11. Edit the holding comment to "✅ Review posted: <url>".
+#   9. Write the metadata marker (update-metadata.sh).
+#   10. Edit the holding comment to "✅ Review posted: <url>" plus a
+#       🔁 CTA pointing the user at /rtl re-review (the GitHub native
+#       Re-request review button does not work for App reviewers — see
+#       the note in Step 9 below).
 #
 # Exit codes:
 #   0  review posted, or precondition prevented it (already-active, draft,
@@ -181,7 +182,7 @@ if [[ "$PR_DRAFT" == "true" ]]; then
 fi
 
 if echo "$PR_LABELS" | jq -e --arg l "$RTL_LABEL" 'index($l) != null' >/dev/null; then
-  post_user_comment "rtlreviewbot is already active on this PR. Use the **Re-request review** button or \`/rtl re-review\` to refresh."
+  post_user_comment "rtlreviewbot is already active on this PR. Reply with \`/rtl re-review\` to refresh against current HEAD."
   log info preconditions skipped_already_active "{}"
   exit 0
 fi
@@ -403,23 +404,14 @@ if ! gh api -X POST "repos/${REPO}/issues/${PR}/labels" \
 fi
 
 # ---------------------------------------------------------------------------
-# Step 9 — best-effort reviewer add (enables Re-request review for FR-2)
-# ---------------------------------------------------------------------------
-
-# Use the bot's slug (without [bot] suffix) for the requested-reviewers API.
-# If $BOT_LOGIN is the [bot]-suffixed user login, strip the suffix.
-BOT_SLUG="${BOT_LOGIN%\[bot\]}"
-log info request_reviewer attempt "$(jq -cn --arg s "$BOT_SLUG" '{slug:$s}')"
-if ! gh api -X POST "repos/${REPO}/pulls/${PR}/requested_reviewers" \
-       -f "reviewers[]=$BOT_SLUG" >/dev/null 2>"$ERR_FILE"; then
-  err="$(tr '\n' ' ' <"$ERR_FILE" 2>/dev/null || true)"
-  log warn request_reviewer not_added "$(jq -cn --arg m "$err" '{message:$m}')"
-  # Non-fatal. Some Apps cannot be requested reviewers; the bot still works
-  # for direct /rtl re-review even if Re-request review does not target it.
-fi
-
-# ---------------------------------------------------------------------------
-# Step 10 — write metadata marker
+# Step 9 — write metadata marker
+#
+# (The previous v0.5.0–v0.5.4 builds had a "best-effort reviewer add" step
+# here that POSTed to /pulls/N/requested_reviewers with the App slug.
+# GitHub's API silently rejects App accounts on that endpoint — the call
+# returns 200 but the App is never actually attached. Re-reviews are
+# triggered via the `/rtl re-review` comment command instead; the CTA in
+# the holding-comment finalize below points users at it.)
 # ---------------------------------------------------------------------------
 
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -456,7 +448,12 @@ if ! "$REPO_ROOT/scripts/update-metadata.sh" \
 fi
 
 # ---------------------------------------------------------------------------
-# Step 11 — finalize the holding comment
+# Step 10 — finalize the holding comment
+#
+# Edits the holding comment in place to a success summary plus a CTA for
+# re-review. GitHub's "Re-request review" UI button does not work for
+# App reviewers (see the note in Step 9), so we surface the comment-
+# command path explicitly here.
 # ---------------------------------------------------------------------------
 
 INLINE_COUNT="$(jq -r '.inline_count'  "$POST_FILE")"
@@ -464,7 +461,10 @@ DEMOTED_COUNT="$(jq -r '.demoted_count' "$POST_FILE")"
 TOTAL=$((INLINE_COUNT + DEMOTED_COUNT))
 update_holding "✅ Review posted: ${REVIEW_URL}
 
-${TOTAL} finding(s); ${INLINE_COUNT} inline, ${DEMOTED_COUNT} in body."
+${TOTAL} finding(s); ${INLINE_COUNT} inline, ${DEMOTED_COUNT} in body.
+
+🔁 **Need a re-review after pushing changes?** Reply with \`/rtl re-review\`.
+Maintainers can also \`/rtl dismiss <id>\` to silence specific findings, or anyone can \`/rtl explain <id>\` for elaboration."
 
 log info handle_review success "$(jq -cn \
   --arg url "$REVIEW_URL" \

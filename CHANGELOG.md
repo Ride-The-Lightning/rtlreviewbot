@@ -5,6 +5,40 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.5] — 2026-05-01
+
+Pivot re-review trigger from the GitHub "Re-request review" UI button to
+the `/rtl re-review` comment command. The button cannot work for our
+bot: GitHub's `requested_reviewers` API silently rejects App accounts
+(it returns 200 but does not actually attach the App), so the bot is
+never in the reviewers sidebar where the button lives.
+
+This was discovered on the first end-to-end smoke test against
+`Ride-The-Lightning/RTL-Web` PR #2 — the bot's review posted cleanly
+but no Re-request review affordance appeared.
+
+### Changed
+- `scripts/handlers/handle-review.sh`: removed the no-op "best-effort
+  reviewer add" step. The API call always silently failed for App
+  accounts; removing it cuts ~1 second of latency and a misleading log
+  line per review.
+- `scripts/handlers/handle-review.sh`: the holding comment's success
+  message now ends with a 🔁 CTA pointing users at `/rtl re-review`,
+  `/rtl dismiss <id>`, and `/rtl explain <id>`. Mimics the affordance
+  of the native button without depending on the App-as-reviewer path.
+- `docs/commands.md`: invocation section explicitly notes the GitHub
+  API limitation and pins `/rtl re-review` as the canonical re-review
+  trigger. The "Re-request review button" row in the other-triggers
+  table is removed; a forward-compat note about the workflow listener
+  remains.
+
+### Notes
+- The reusable workflow still listens for `pull_request review_requested`
+  events. The listener is a free no-op today and would auto-enable if
+  GitHub ever opens up App accounts on the requested-reviewers API.
+- `handle-re-review.sh` is still a stub. Wiring it up is the next
+  natural milestone — full FR-2 flow against the metadata marker.
+
 ## [0.5.4] — 2026-04-30
 
 Claude auth: API-key path is no longer the only option, and is no longer
