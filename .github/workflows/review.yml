@@ -49,8 +49,11 @@ on:
         description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY).'
         required: true
       anthropic_api_key:
-        description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY).'
-        required: true
+        description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY). Either this or claude_code_oauth_token must be set; if both are set, API is tried first and OAuth is the fallback.'
+        required: false
+      claude_code_oauth_token:
+        description: 'Claude Code OAuth token (org secret CLAUDE_CODE_OAUTH_TOKEN). Generate locally via `claude setup-token` after `claude /login`. Bills against the signed-in Claude.ai subscription rather than per-token API. Either this or anthropic_api_key must be set.'
+        required: false
 
 permissions:
   # The reusable workflow itself needs no special token permissions — every
@@ -78,7 +81,12 @@ jobs:
           GATEWAY_APP_ID: ${{ secrets.app_id }}
           GATEWAY_PRIVATE_KEY: ${{ secrets.private_key }}
           GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}
+          # Both Claude auth env vars are passed through. handle-review.sh
+          # detects which are present and tries them in order: API first,
+          # OAuth fallback. At least one must be set or the script errors
+          # out cleanly.
           ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.claude_code_oauth_token }}
         run: |
           rtlreviewbot/scripts/run-review.sh \
             --event-name   "${{ inputs.event_name }}" \

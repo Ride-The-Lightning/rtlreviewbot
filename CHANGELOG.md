@@ -5,6 +5,64 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.5.4] — 2026-04-30
+
+Claude auth: API-key path is no longer the only option, and is no longer
+required. The reusable workflow now accepts either `anthropic_api_key`
+or `claude_code_oauth_token`, or both. With both set, `handle-review.sh`
+tries API first and falls back to OAuth on failure — including the
+"soft failure" case where the CLI exits 0 but produces non-review
+output (e.g. `"Credit balance is too low"`).
+
+The fallback success criterion is the parser itself: a Claude attempt
+counts as success only when `parse-review-output.sh` accepts the output.
+Single source of truth — no separate heuristic to drift.
+
+### Added
+- `CLAUDE_CODE_OAUTH_TOKEN` accepted as an alternative or fallback to
+  `ANTHROPIC_API_KEY`. Generated locally via `claude setup-token` after
+  `claude /login`; bills against the signed-in Claude.ai subscription
+  quota rather than per-token API.
+- `handle-review.sh`: structured try-then-fall-back loop over auth modes
+  (`api`, `oauth`). Each mode gets up to two attempts. Each attempt is
+  scored by the parser, not by exit code alone — soft failures fall
+  through to the next attempt instead of being mistaken for success.
+- Diagnostic logs include the list of auth modes available and which
+  mode/attempt produced the eventual success or final failure.
+
+### Changed
+- `.github/workflows/review.yml`: both Claude auth secrets are now
+  `required: false` at the workflow-call layer; runtime enforcement
+  ("at least one must be set") moved into `handle-review.sh`.
+- `docs/consumer-setup.md` Step 9 secrets table: `CLAUDE_CODE_OAUTH_TOKEN`
+  added; both Claude secrets marked optional with an explanatory note.
+- `docs/consumer-setup.md` Step 3 shim example: passes both auth
+  secrets through.
+
+### Notes
+- Existing shims that only set `anthropic_api_key` continue to work
+  unchanged. To get fallback, set the second secret too.
+- The OAuth token is tied to a specific Claude.ai account. Production
+  deployments should plan for a different auth surface (org-scoped API
+  key, Bedrock, or Vertex) rather than relying on a personal session.
+
+## [0.5.3] — 2026-04-30
+
+### Fixed
+- `handle-review.sh`: capture the Claude exit code from the `else`
+  branch of the auth-retry loop. Previously `claude_exit=$?` after
+  `fi` always logged 0, masking the real failure code.
+
+## [0.5.1, 0.5.2] — 2026-04-30
+
+### Fixed
+- `handle-review.sh`: pipe the prompt to `claude -p` via stdin rather
+  than passing it as a positional argument. The CLI parsed our SKILL.md
+  YAML frontmatter (which starts with `---`) as an unknown option.
+- `handle-review.sh`: surface both stdout and stderr (truncated) from
+  the failed Claude invocation so the operator has something concrete
+  to act on, instead of an "unknown" placeholder.
+
 ## [0.5.0] — 2026-04-30
 
 First end-to-end-capable release. The `/rtl review` flow is wired top to

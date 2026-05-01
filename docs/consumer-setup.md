@@ -108,15 +108,24 @@ Org Settings → Secrets and variables → Actions → New organization secret.
 |---|---|---|
 | `GATEWAY_APP_ID` | the numeric App ID from Step 7 | Selected repositories — start narrow |
 | `GATEWAY_PRIVATE_KEY` | full PEM contents (include `-----BEGIN…-----` and `-----END…-----` lines) | Selected repositories — start narrow |
-| `ANTHROPIC_API_KEY` | Anthropic API key with access to the configured Claude model | Selected repositories — start narrow |
+| `ANTHROPIC_API_KEY` (optional) | Anthropic API key with access to the configured Claude model. Per-token billing on the Anthropic API. | Selected repositories — start narrow |
+| `CLAUDE_CODE_OAUTH_TOKEN` (optional) | Long-lived OAuth token tied to a Claude.ai account. Generated locally by running `claude /login` then `claude setup-token`. Bills against the signed-in account's Pro/Max/Team subscription quota. | Selected repositories — start narrow |
 
 > The `GATEWAY_` prefix on the App-credential secrets is retained from the
 > original architecture primer. The visible bot identity is rtlreviewbot;
 > the secret names are an internal implementation detail.
 >
-> `ANTHROPIC_API_KEY` is the API key the `/code-review` skill uses to call
-> Claude. Treat it as a real secret — it's billed against your Anthropic
-> account whenever the bot runs.
+> **Claude auth: at least one of the two Claude-related secrets must be
+> set.** Either alone works. If you set both, the bot tries
+> `ANTHROPIC_API_KEY` first per `/rtl review` invocation and falls back
+> to `CLAUDE_CODE_OAUTH_TOKEN` if the API path fails (auth error, credit
+> exhausted, soft "Credit balance is too low" output, or any case where
+> the response is not a parseable review). This gives you continuity
+> through transient API-side outages without losing per-call billing
+> visibility when the API path is healthy.
+>
+> Both forms cost real money under different billing models. Treat each
+> as a real secret.
 
 Installation IDs are **not** secrets — they are not sensitive and can be
 discovered at runtime via `GET /app/installations`.
@@ -209,9 +218,14 @@ jobs:
       installation_id: 127679607          # see Part 2 Step 1
       ref:             v0.5.0             # pin to a release tag in production
     secrets:
-      app_id:            ${{ secrets.GATEWAY_APP_ID }}
-      private_key:       ${{ secrets.GATEWAY_PRIVATE_KEY }}
-      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      app_id:                  ${{ secrets.GATEWAY_APP_ID }}
+      private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
+      # Claude auth — pass either or both. If both are set the bot tries
+      # API first, OAuth as fallback. If only one is set, only that path
+      # is attempted. Setting neither makes /rtl review fail with a
+      # clear "no auth credential" error.
+      anthropic_api_key:       ${{ secrets.ANTHROPIC_API_KEY }}
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 Notes:
@@ -223,8 +237,11 @@ Notes:
 - **`installation_id`** is the consumer-repo-specific App installation
   ID from Part 2 Step 1. It's not a secret — the architecture primer
   explains why; treat it as a hard-coded literal in the shim.
-- **`ANTHROPIC_API_KEY`** must be added to the consumer repo's secret
-  scope alongside `GATEWAY_APP_ID` and `GATEWAY_PRIVATE_KEY`.
+- **At least one of `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`**
+  must be added to the consumer repo's secret scope alongside the App
+  credentials. Either alone works; setting both enables fallback (API
+  attempted first, OAuth on failure). See Part 1 Step 9 for the full
+  table.
 
 ### Step 4 — Optional per-repo configuration
 

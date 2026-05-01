@@ -229,10 +229,27 @@ Consider splitting this PR into smaller pieces, then re-invoke \`/rtl review\`. 
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5 — invoke the /code-review skill via Claude Code
+# Step 5+6 — invoke the /code-review skill and parse its output, with
+# auth-mode fallback.
 #
-# Prompt structure: SKILL.md (canonical contract + rubric) -> initial-review
-# prompt (mode-specific) -> the PR context JSON.
+# Auth modes:
+#   - api    — use $ANTHROPIC_API_KEY (per-token billing on the Anthropic API)
+#   - oauth  — use $CLAUDE_CODE_OAUTH_TOKEN (Claude.ai subscription quota)
+#
+# We try modes in a fixed order: API first, OAuth second. For each mode
+# we make up to two attempts. A "success" requires BOTH:
+#   (a) the claude CLI exits 0, AND
+#   (b) parse-review-output.sh accepts the output (i.e. the response
+#       actually looks like a review, not "Credit balance is too low" or
+#       similar soft-failure dross that exits 0 on the wrapper but isn't a
+#       real review).
+#
+# The parser is the single source of truth for "valid review" — there is
+# no separate heuristic to drift from it. On failure of either condition,
+# we fall through to the next attempt (and eventually the next mode).
+#
+# Prompt structure: SKILL.md (canonical contract + rubric) -> initial-
+# review prompt (mode-specific) -> the PR context JSON.
 # ---------------------------------------------------------------------------
 
 {
@@ -244,14 +261,24 @@ fi
   printf '\n```\n'
 } > "$PROMPT_FILE"
 
-# One-time diagnostic: log the CLI's version and resolved path. Helps
-# debug "is claude even installed" / "which version is on PATH" without
-# needing to repro inside the runner.
+# Determine which auth modes are available in the environment.
+auth_modes=()
+[[ -n "${ANTHROPIC_API_KEY:-}"        ]] && auth_modes+=(api)
+[[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}"  ]] && auth_modes+=(oauth)
+
+if (( ${#auth_modes[@]} == 0 )); then
+  fail_with_holding "no Claude auth credential available — set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN" invoke_claude
+fi
+
+# One-time diagnostic: CLI version, resolved path, and which auth modes
+# we plan to try. Helps debug environment problems without needing to
+# repro inside the runner.
 CLAUDE_BIN="$(command -v claude 2>/dev/null || echo '<not-found>')"
 CLAUDE_VERSION="$(claude --version 2>&1 | head -n1 || echo '<unavailable>')"
 log info invoke_claude environment "$(jq -cn \
   --arg bin "$CLAUDE_BIN" --arg ver "$CLAUDE_VERSION" --arg m "$MODEL" \
-  '{bin:$bin, version:$ver, model:$m}')"
+  --argjson modes "$(printf '%s\n' "${auth_modes[@]}" | jq -R . | jq -cs .)" \
+  '{bin:$bin, version:$ver, model:$m, auth_modes:$modes}')"
 
 # Non-interactive Claude Code: `claude -p` reads the prompt from stdin and
 # prints the assistant response to stdout. Piping rather than passing the
@@ -259,56 +286,95 @@ log info invoke_claude environment "$(jq -cn \
 # rejects values that start with `--` (our SKILL.md leads with YAML
 # frontmatter that starts with `---`), and (2) argv length limits on
 # 200k-character diffs.
+#
+# `env -u <var>` removes the unwanted auth env var for the child process,
+# so each invocation uses exactly one credential. Without this, the CLI's
+# precedence between API key and OAuth token is implementation-defined.
 invoke_claude() {
-  claude --model "$MODEL" -p \
-    <"$PROMPT_FILE" >"$REVIEW_OUT" 2>"$ERR_FILE"
+  local mode="$1"
+  case "$mode" in
+    api)
+      env -u CLAUDE_CODE_OAUTH_TOKEN \
+        claude --model "$MODEL" -p \
+        <"$PROMPT_FILE" >"$REVIEW_OUT" 2>"$ERR_FILE"
+      ;;
+    oauth)
+      env -u ANTHROPIC_API_KEY \
+        claude --model "$MODEL" -p \
+        <"$PROMPT_FILE" >"$REVIEW_OUT" 2>"$ERR_FILE"
+      ;;
+    *)
+      return 99
+      ;;
+  esac
 }
 
-attempt=1
-max_attempts=2
 claude_ok=false
-claude_exit=0
-while (( attempt <= max_attempts )); do
-  # Capture exit code via the else branch. After `fi`, bash sets $? to 0
-  # when no branch ran (per the man page rule "or zero if no condition
-  # tested true"), which would mask the actual failure code.
-  if invoke_claude; then
-    claude_ok=true
-    break
-  else
-    claude_exit=$?
-  fi
-  if (( attempt < max_attempts )); then
-    log warn invoke_claude retry "$(jq -cn \
-      --argjson n "$attempt" --argjson code "$claude_exit" \
-      '{attempt:$n, exit_code:$code}')"
-    sleep 5
-  fi
-  attempt=$((attempt + 1))
+last_invoke_exit=0
+last_parse_exit=0
+last_mode=""
+PARSE_ERR_FILE="$WORK/parse_err"
+
+for mode in "${auth_modes[@]}"; do
+  last_mode="$mode"
+  attempt=1
+  max_attempts=2
+  while (( attempt <= max_attempts )); do
+    log info invoke_claude attempt "$(jq -cn \
+      --arg mode "$mode" --argjson n "$attempt" \
+      '{mode:$mode, attempt:$n}')"
+
+    if invoke_claude "$mode"; then
+      last_invoke_exit=0
+      # Parser is the success oracle: did Claude actually produce a
+      # review-shaped response, or some soft-failure surrogate?
+      if "$REPO_ROOT/scripts/parse-review-output.sh" \
+           <"$REVIEW_OUT" >"$PARSED_FILE" 2>"$PARSE_ERR_FILE"; then
+        last_parse_exit=0
+        claude_ok=true
+        log info invoke_claude success "$(jq -cn \
+          --arg mode "$mode" --argjson n "$attempt" \
+          '{mode:$mode, attempt:$n}')"
+        break 2
+      else
+        last_parse_exit=$?
+        soft_excerpt="$(head -c 500 "$REVIEW_OUT" 2>/dev/null | tr '\n' ' ' || true)"
+        log warn invoke_claude soft_failure "$(jq -cn \
+          --arg mode "$mode" --argjson n "$attempt" \
+          --argjson code "$last_parse_exit" --arg excerpt "$soft_excerpt" \
+          '{mode:$mode, attempt:$n, parse_exit:$code, output_excerpt:$excerpt}')"
+      fi
+    else
+      last_invoke_exit=$?
+      err_excerpt="$(head -c 500 "$ERR_FILE" 2>/dev/null | tr '\n' ' ' || true)"
+      log warn invoke_claude hard_failure "$(jq -cn \
+        --arg mode "$mode" --argjson n "$attempt" \
+        --argjson code "$last_invoke_exit" --arg stderr "$err_excerpt" \
+        '{mode:$mode, attempt:$n, exit_code:$code, stderr:$stderr}')"
+    fi
+
+    if (( attempt < max_attempts )); then
+      sleep 5
+    fi
+    attempt=$((attempt + 1))
+  done
+  log info invoke_claude mode_exhausted "$(jq -cn --arg mode "$mode" '{mode:$mode}')"
 done
 
 if ! "$claude_ok"; then
-  # Some CLIs surface errors on stdout instead of stderr (or write to
-  # both). Capture both, truncated, so the failure log gives the operator
-  # something concrete to act on.
-  err_excerpt="$(head -c 1500 "$ERR_FILE"   2>/dev/null | tr '\n' ' ' || true)"
-  out_excerpt="$(head -c 1500 "$REVIEW_OUT" 2>/dev/null | tr '\n' ' ' || true)"
+  # Surface enough context that an operator can act without re-running.
+  err_excerpt="$(head -c 1500 "$ERR_FILE"        2>/dev/null | tr '\n' ' ' || true)"
+  out_excerpt="$(head -c 1500 "$REVIEW_OUT"      2>/dev/null | tr '\n' ' ' || true)"
+  parse_err_excerpt="$(head -c 500 "$PARSE_ERR_FILE" 2>/dev/null | tr '\n' ' ' || true)"
   log error invoke_claude full_failure "$(jq -cn \
-    --argjson code "$claude_exit" \
-    --arg     stderr "$err_excerpt" \
-    --arg     stdout "$out_excerpt" \
-    '{exit_code:$code, stderr:$stderr, stdout:$stdout}')"
-  fail_with_holding "code-review skill failed after retry (exit ${claude_exit}): ${err_excerpt:-${out_excerpt:-no output}}" invoke_claude
-fi
-
-# ---------------------------------------------------------------------------
-# Step 6 — parse Claude's output
-# ---------------------------------------------------------------------------
-
-if ! "$REPO_ROOT/scripts/parse-review-output.sh" \
-       <"$REVIEW_OUT" >"$PARSED_FILE" 2>"$ERR_FILE"; then
-  err="$(tr '\n' ' ' <"$ERR_FILE" 2>/dev/null || true)"
-  fail_with_holding "could not parse skill output: ${err:-unknown}" parse_review
+    --arg     last_mode    "$last_mode" \
+    --argjson invoke_exit  "$last_invoke_exit" \
+    --argjson parse_exit   "$last_parse_exit" \
+    --arg     stderr       "$err_excerpt" \
+    --arg     stdout       "$out_excerpt" \
+    --arg     parse_stderr "$parse_err_excerpt" \
+    '{last_mode:$last_mode, invoke_exit:$invoke_exit, parse_exit:$parse_exit, stderr:$stderr, stdout:$stdout, parse_stderr:$parse_stderr}')"
+  fail_with_holding "code-review skill failed across all auth modes (last mode=${last_mode}, invoke_exit=${last_invoke_exit}, parse_exit=${last_parse_exit}): ${err_excerpt:-${out_excerpt:-no output}}" invoke_claude
 fi
 
 # ---------------------------------------------------------------------------
