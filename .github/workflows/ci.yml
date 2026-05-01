@@ -22,7 +22,10 @@ jobs:
 
       - name: Run shellcheck
         run: |
-          find scripts -name '*.sh' -print0 | xargs -0 shellcheck
+          # -x follows files referenced via `# shellcheck source=...` so
+          # source-only libraries under scripts/lib/ are linted in context
+          # rather than reported as SC1091 "not following".
+          find scripts -name '*.sh' -print0 | xargs -0 shellcheck -x
 
   actionlint:
     name: actionlint

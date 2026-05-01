@@ -70,9 +70,16 @@ fi
 
 log info handle_close attempt "$(jq -cn --arg r "$REPO" --arg p "$PR" '{repo:$r, pr:$p}')"
 
-# 1. Strip labels.
-[[ "$HAD_LABEL"  == "true" ]] && remove_label "$REPO" "$PR" "$RTL_ACTIVE" || true
-[[ "$HAD_PAUSED" == "true" ]] && remove_label "$REPO" "$PR" "$RTL_PAUSED" || true
+# 1. Strip labels. Either remove returning success is fine; failures are
+# logged but non-fatal (the marker remains as the audit record either way).
+if [[ "$HAD_LABEL"  == "true" ]]; then
+  remove_label "$REPO" "$PR" "$RTL_ACTIVE" \
+    || log warn remove_label failure '{"label":"rtl-active"}'
+fi
+if [[ "$HAD_PAUSED" == "true" ]]; then
+  remove_label "$REPO" "$PR" "$RTL_PAUSED" \
+    || log warn remove_label failure '{"label":"rtl-paused"}'
+fi
 
 # 2. Append the terminal record to the marker, if a marker exists.
 WORK="$(mktemp -d -t rtl-close.XXXXXX)"

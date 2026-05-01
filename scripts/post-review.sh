@@ -321,15 +321,22 @@ if (( INLINE_COUNT > 0 )); then
   if gh api --paginate \
        "repos/${REPO}/pulls/${PR}/reviews/${REVIEW_ID}/comments" \
        >"$COMMENTS_FILE" 2>"$ERR_FILE"; then
-    FINDING_COMMENT_IDS="$(jq -s '
+    # Guard against the response being something other than an array of
+    # comments — e.g. a stub returning the review object, or a paginated
+    # empty result. The `if type == "array"` keeps `map()` from blowing up.
+    parsed_map="$(jq -s '
       (add // [])
-      | map(select(.body | test("^\\*\\*F[0-9]+")))
+      | (if type == "array" then . else [] end)
+      | map(select((.body? // "") | test("^\\*\\*F[0-9]+")))
       | map({
           key:   (.body | capture("^\\*\\*(?<id>F[0-9]+)") | .id),
           value: .id
         })
       | from_entries
-    ' "$COMMENTS_FILE")"
+    ' "$COMMENTS_FILE" 2>/dev/null)" || parsed_map=""
+    if [[ -n "$parsed_map" ]]; then
+      FINDING_COMMENT_IDS="$parsed_map"
+    fi
   else
     err="$(tr '\n' ' ' <"$ERR_FILE" 2>/dev/null || true)"
     log warn post_review comment_id_lookup_failed "$(jq -cn --arg e "$err" '{message:$e}')"
