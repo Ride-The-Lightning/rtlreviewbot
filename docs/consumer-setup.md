@@ -181,8 +181,8 @@ add the consumer repo to the selected-repositories list.
 ### Step 3 — Add the workflow shim to the consumer repo
 
 Drop the following file at `.github/workflows/rtlreviewbot.yml` in the
-consumer repo. It catches the relevant GitHub events and forwards
-normalized inputs to the reusable workflow.
+consumer repo. It catches the relevant GitHub events and calls the
+rtlreviewbot composite action.
 
 ```yaml
 name: rtlreviewbot
@@ -198,7 +198,7 @@ on:
     types: [review_requested, closed]
 
 permissions:
-  # The reusable workflow uses an App installation token internally; the
+  # The composite action mints an App installation token internally; the
   # GITHUB_TOKEN handed to this shim is unused, so we minimise it.
   contents: read
 
@@ -206,48 +206,72 @@ jobs:
   review:
     # issue_comment fires for any issue. Filter to PR comments only.
     if: ${{ github.event_name != 'issue_comment' || github.event.issue.pull_request != null }}
-    uses: Ride-The-Lightning/rtlreviewbot/.github/workflows/review.yml@v0.7.0
-    with:
-      event_name:      ${{ github.event_name }}
-      event_action:    ${{ github.event.action }}
-      repo:            ${{ github.repository }}
-      pr_number:       >-
-        ${{ github.event.issue.number || github.event.pull_request.number }}
-      actor:           ${{ github.event.sender.login }}
-      comment_body:    ${{ github.event.comment.body }}
-      comment_id:      ${{ github.event.comment.id }}
-      installation_id: 127679607          # see Part 2 Step 1
-      ref:             v0.7.0             # pin to a release tag in production
-    secrets:
-      app_id:                  ${{ secrets.GATEWAY_APP_ID }}
-      private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
-      # Claude auth — pass either or both. If both are set the bot tries
-      # API first, OAuth as fallback. If only one is set, only that path
-      # is attempted. Setting neither makes /rtl review fail with a
-      # clear "no auth credential" error.
-      anthropic_api_key:       ${{ secrets.ANTHROPIC_API_KEY }}
-      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.8.0
+        with:
+          event_name:      ${{ github.event_name }}
+          event_action:    ${{ github.event.action }}
+          repo:            ${{ github.repository }}
+          pr_number:       ${{ github.event.issue.number || github.event.pull_request.number }}
+          actor:           ${{ github.event.sender.login }}
+          comment_body:    ${{ github.event.comment.body }}
+          comment_id:      ${{ github.event.comment.id }}
+          installation_id: 127679607          # see Part 2 Step 1
+          # Credentials — passed as `with:` inputs since composite
+          # actions cannot declare a `secrets:` block. At least one of
+          # anthropic_api_key or claude_code_oauth_token must be set;
+          # if both are set, API is tried first and OAuth is the
+          # fallback. Setting neither makes /rtl review fail with a
+          # clear "no auth credential" error.
+          app_id:                  ${{ secrets.GATEWAY_APP_ID }}
+          private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
+          anthropic_api_key:       ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
 Notes:
 
-- **Pin the `uses:` ref and `ref:` input to the same release tag.** They
-  both control which version of rtlreviewbot runs; mismatched values
-  cause subtle drift. The example uses `v0.7.0` as a placeholder — pin
-  to whatever tag matches the rtlreviewbot release you're consuming.
+- **Pin the `uses:` ref to a release tag** (e.g. `v0.8.0`). Floating refs
+  like `@main` are not supported in production. Unlike v0.7.x, there is
+  only one place to pin — the separate `ref:` input is gone.
 - **`comment_id` is required for reaction-based UX.** The state-management
   commands (`/rtl pause`/`resume`/`stop`/`dismiss`) acknowledge success
   with a 👍 reaction on the triggering comment. If `comment_id` is empty
   the reaction is silently skipped — the command still works, but you
   lose the visual feedback.
 - **`installation_id`** is the consumer-repo-specific App installation
-  ID from Part 2 Step 1. It's not a secret — the architecture primer
+  ID from Part 2 Step 1. It is not a secret — the architecture primer
   explains why; treat it as a hard-coded literal in the shim.
 - **At least one of `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`**
   must be added to the consumer repo's secret scope alongside the App
   credentials. Either alone works; setting both enables fallback (API
   attempted first, OAuth on failure). See Part 1 Step 9 for the full
   table.
+
+#### Migrating from v0.7.x
+
+The shim shape changed in v0.8.0. The functional behavior of every
+`/rtl <command>` is unchanged — this is purely a packaging change so
+the rtlreviewbot repo can be re-privated.
+
+| v0.7.x (deprecated) | v0.8.0+ |
+|---|---|
+| `uses: …/rtlreviewbot/.github/workflows/review.yml@<TAG>` at the **job** level | `uses: …/rtlreviewbot/.github/actions/review@<TAG>` as a **step** inside the job |
+| Top-level `secrets:` block alongside `with:` | All values (including credentials) under a single `with:` block |
+| Separate `ref:` input duplicating the `uses:` pin | Single pin, on `uses:` |
+| Job declared via `jobs.<id>.uses:` (no `runs-on:`) | Job declares its own `runs-on:` and contains a normal `steps:` list |
+
+The `pull_request.review_requested` and `pull_request.closed` events,
+the `issue_comment.created` filter, the `permissions: contents: read`,
+and every input field name are unchanged. Replace the body of the
+shim's `jobs.review:` with the example above.
+
+The v0.7.x reusable workflow is retained for now and emits a
+deprecation warning at runtime; removal is planned for v0.9.0. v0.7.x
+pins are unaffected — they continue to reference the v0.7.x copy of
+the reusable workflow.
 
 ### Step 4 — Optional per-repo configuration
 

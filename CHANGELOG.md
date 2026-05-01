@@ -5,6 +5,47 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+Composite-action refactor — packaging change so the rtlreviewbot repo
+can be re-privated. No functional change to `/rtl <command>` behavior.
+
+### Added
+- `.github/actions/review/action.yml` — composite action that becomes
+  the v0.8.0+ consumer entry point. Same script body
+  (`scripts/run-review.sh`) is invoked, but consumers reach it via
+  `uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.8.0`
+  inside their own job's `steps:`, with credentials passed as `with:`
+  inputs instead of a `secrets:` block. GitHub's runner orchestration
+  fetches the action repo automatically — consumer workflows no longer
+  need an `actions/checkout` of rtlreviewbot, which means the bot can
+  finally be made private (the missing piece since v0.5.x).
+
+### Changed
+- `docs/consumer-setup.md` Part 2 Step 3 rewritten around the composite
+  action. Shape is breaking for consumers upgrading from v0.7.x: there
+  is no longer a top-level `secrets:` block; every value moves into
+  `with:`. A migration table is included in Step 3. Pinned refs in the
+  example bumped to `v0.8.0`.
+
+### Deprecated
+- `.github/workflows/review.yml` (the reusable workflow). It still
+  works while rtlreviewbot is public and now emits a `::warning::` on
+  every run pointing at the composite-action migration. Removal
+  planned for v0.9.0. The workflow's internal `actions/checkout` of
+  this repo uses the consumer's `GITHUB_TOKEN`, which cannot read the
+  repo once it is private — that is the underlying reason for the
+  move.
+
+### Notes
+- Migrating an existing consumer from v0.7.x to v0.8.0 is a workflow-
+  shim shape change, not just a tag bump. Walk through the new
+  `docs/consumer-setup.md` Part 2 Step 3 example end-to-end.
+- After v0.8.0 ships and the smoke test on `Ride-The-Lightning/RTL-Web`
+  is green, the rtlreviewbot repo can be re-privated. Required
+  follow-up settings on this repo:
+  Settings → Actions → General → Access → "Accessible from
+  repositories in the 'Ride-The-Lightning' organization." Same-org
+  consumers can then continue to fetch the composite action.
+
 ## [0.7.0] — 2026-05-01
 
 Claude-invoking command handlers — the second half of M6. `/rtl

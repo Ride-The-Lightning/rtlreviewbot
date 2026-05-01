@@ -1,5 +1,18 @@
-name: rtlreviewbot review (reusable)
+name: "[DEPRECATED] rtlreviewbot review (reusable)"
 
+# DEPRECATED as of v0.8.0. Removal planned for v0.9.0.
+#
+# New consumers must call the composite action instead:
+#   uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.8.0
+# See docs/consumer-setup.md for the new shim shape.
+#
+# This file is retained for v0.7.x consumers still pinned to those tags
+# (their pin already references the v0.7.x copy of this file, which is
+# unaffected by changes here). The body still works while rtlreviewbot is
+# public, but the internal `actions/checkout` step uses the consumer's
+# GITHUB_TOKEN, which cannot read this repo once it is made private —
+# that is the whole reason the composite action exists.
+#
 # Reusable workflow invoked by consumer repos via `uses:`. The consumer
 # shim catches GitHub events and forwards normalized inputs to this file.
 
@@ -71,6 +84,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Deprecation warning
+        shell: bash
+        run: |
+          echo "::warning::This reusable workflow is deprecated as of v0.8.0 and will be removed in v0.9.0. Migrate to the composite action: uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.8.0 — see docs/consumer-setup.md."
+
       - name: Checkout rtlreviewbot
         uses: actions/checkout@v4
         with:

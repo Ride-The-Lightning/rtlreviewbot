@@ -1,0 +1,78 @@
+name: 'rtlreviewbot review'
+description: 'Run rtlreviewbot on a PR event and post the result. Invoked from a consumer repo''s workflow shim.'
+
+# This composite action is the v0.8.0+ entry point. It replaces the reusable
+# workflow at .github/workflows/review.yml, which is deprecated and will be
+# removed in v0.9.0. The composite shape is required so the consumer can
+# fetch this action from a private rtlreviewbot repo via GitHub's runner
+# orchestration (which respects the action repo's same-org access setting),
+# instead of the reusable workflow's actions/checkout step that needed the
+# consumer's GITHUB_TOKEN to read this repo.
+
+inputs:
+  event_name:
+    description: 'GitHub event that triggered the consumer shim (issue_comment, pull_request).'
+    required: true
+  event_action:
+    description: 'Event-specific action (e.g. created, review_requested, closed).'
+    required: false
+    default: ''
+  repo:
+    description: 'Consumer repo in owner/name form (typically github.repository).'
+    required: true
+  pr_number:
+    description: 'Pull request number.'
+    required: true
+  actor:
+    description: 'Login of the user that triggered the event.'
+    required: true
+  comment_body:
+    description: 'Body of the triggering comment, for issue_comment events.'
+    required: false
+    default: ''
+  comment_id:
+    description: 'Numeric id of the triggering comment, for issue_comment events. Used to react with a 👍 on success.'
+    required: false
+    default: ''
+  installation_id:
+    description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
+    required: true
+  app_id:
+    description: 'rtlreviewbot GitHub App ID (org secret GATEWAY_APP_ID). Pass via with: app_id: ${{ secrets.GATEWAY_APP_ID }}.'
+    required: true
+  private_key:
+    description: 'rtlreviewbot GitHub App private key, PEM contents (org secret GATEWAY_PRIVATE_KEY). Pass via with: private_key: ${{ secrets.GATEWAY_PRIVATE_KEY }}.'
+    required: true
+  anthropic_api_key:
+    description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY). Either this or claude_code_oauth_token must be set; if both are set, API is tried first and OAuth is the fallback.'
+    required: false
+    default: ''
+  claude_code_oauth_token:
+    description: 'Claude Code OAuth token (org secret CLAUDE_CODE_OAUTH_TOKEN). Either this or anthropic_api_key must be set.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install Claude Code CLI
+      shell: bash
+      run: npm install -g @anthropic-ai/claude-code
+
+    - name: Run rtlreviewbot
+      shell: bash
+      env:
+        GATEWAY_APP_ID: ${{ inputs.app_id }}
+        GATEWAY_PRIVATE_KEY: ${{ inputs.private_key }}
+        GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+      run: |
+        "${{ github.action_path }}/../../../scripts/run-review.sh" \
+          --event-name   "${{ inputs.event_name }}" \
+          --event-action "${{ inputs.event_action }}" \
+          --repo         "${{ inputs.repo }}" \
+          --pr           "${{ inputs.pr_number }}" \
+          --actor        "${{ inputs.actor }}" \
+          --comment-body "${{ inputs.comment_body }}" \
+          --comment-id   "${{ inputs.comment_id }}"
