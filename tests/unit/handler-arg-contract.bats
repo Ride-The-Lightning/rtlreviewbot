@@ -27,6 +27,11 @@ setup() {
 
   # Copy scripts/ to a tmpdir so we can overlay sub-scripts.
   cp -r "$REPO_ROOT/scripts" "$TEST_TMP/scripts"
+  # Copy skills/ so handle-review's `[[ -d "$SKILL_DIR" ]]` precondition
+  # is satisfied; otherwise that check (also logged via parse_args)
+  # would create noise unrelated to the arg-parser contract we are
+  # testing.
+  cp -r "$REPO_ROOT/skills"  "$TEST_TMP/skills"
 
   # Permissive sub-script stubs. The arg-parsing step runs first in
   # every handler; these stubs let any handler that gets that far
@@ -84,11 +89,10 @@ teardown() { rm -rf "$TEST_TMP"; }
     stderr_capture="$(bash "$handler" "${args[@]}" 2>&1 >/dev/null)"
     set -e
 
-    if printf '%s' "$stderr_capture" | grep -qF '"event":"parse_args","outcome":"failure"'; then
-      failures+="${name}: parse_args failure logged"$'\n'
-      fail_count=$((fail_count + 1))
-      continue
-    fi
+    # Specifically flag "unknown argument" — the failure mode this test
+    # exists to catch. Other parse_args events (missing required arg,
+    # bad format) are caught by per-handler bats files; this contract
+    # check is narrower and stays focused on the dispatcher arg surface.
     if printf '%s' "$stderr_capture" | grep -qiF "unknown argument"; then
       failures+="${name}: 'unknown argument' on stderr"$'\n'
       fail_count=$((fail_count + 1))
