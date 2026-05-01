@@ -42,13 +42,17 @@ STUB
   : > "$TEST_TMP/call_log"
   echo '{"pr":{"head_sha":"abc"},"diff":{"text":"d","truncated":false}}' > "$TEST_TMP/context.json"
 
+  # Marker: F1 and F2 are active; F3 is in BOTH .findings and
+  # dismissed_findings (matches how handle-dismiss writes the marker —
+  # appends to dismissed_findings without removing from .findings).
   cat > "$TEST_TMP/marker.json" <<'JSON'
 {
   "version": "1.1",
   "last_reviewed_sha": "abc",
   "findings": [
     {"id":"F1","severity":"major","status":"unresolved","path":"src/x.go","line":10,"body":"original F1 body","inline_comment_id":1001},
-    {"id":"F2","severity":"minor","status":"unresolved","path":"src/y.go","line":5,"body":"original F2 body","inline_comment_id":null}
+    {"id":"F2","severity":"minor","status":"unresolved","path":"src/y.go","line":5,"body":"original F2 body","inline_comment_id":null},
+    {"id":"F3","severity":"minor","status":"unresolved","path":"src/z.go","line":1,"body":"F3 body","inline_comment_id":1003}
   ],
   "dismissed_findings": [
     {"id":"F3","by":"alice","reason":"already gone","at":"2026-04-30T00:00:00Z"}

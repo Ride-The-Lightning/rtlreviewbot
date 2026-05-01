@@ -56,7 +56,7 @@ cat <<'JSON'
   "inline_count": 2,
   "demoted_count": 1,
   "fallback": false,
-  "finding_comment_ids": {"F2": 2002, "F3": 2003}
+  "finding_comment_ids": {"F2": 2002, "F4": 2003}
 }
 JSON
 STUB
