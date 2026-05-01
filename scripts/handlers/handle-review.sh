@@ -85,6 +85,12 @@ while (( $# > 0 )); do
     --skill-dir)     SKILL_DIR="$2"; shift 2 ;;
     --model)         MODEL="$2"; shift 2 ;;
     --skill-version) SKILL_VERSION="$2"; shift 2 ;;
+    # --comment-id is forwarded by run-review.sh for the reaction UX
+    # used by state-management handlers. handle-review's success path
+    # already emits visible feedback via the holding-comment lifecycle
+    # (✅ Review posted: <url>), so we accept the arg and ignore it.
+    --comment-id)    shift 2 ;;
+    --args)          shift 2 ;;
     *) die_args "unknown argument: $1" ;;
   esac
 done
