@@ -206,10 +206,19 @@ if ! echo "$NEW_STATE" | jq empty 2>/dev/null; then
   die "stdin is not valid JSON" read_stdin
 fi
 
-# Compose the new comment body. The state JSON is pretty-printed inside the
-# marker so the raw comment is at least skimmable in the GitHub UI / API.
+# Compose the new comment body.
+#
+# The state JSON lives inside an HTML-comment block bracketed by
+# SENTINEL_OPEN / SENTINEL_CLOSE; that's what the bot's read path
+# extracts. GitHub strips HTML comments during rendering, so a body
+# that contained ONLY the sentinel block would render as a blank
+# comment card — confusing in the PR thread. We prepend a visible
+# one-line header so the comment is recognizable as a bot audit
+# record. The header is purely cosmetic; the bot does not parse it.
 NEW_BODY_FILE="$WORK/new_body.txt"
 {
+  printf '%s\n' "🤖 rtlreviewbot audit metadata for this PR — auto-generated, please don't edit."
+  printf '\n'
   printf '%s\n' "$SENTINEL_OPEN"
   echo "$NEW_STATE" | jq .
   printf '%s\n' "$SENTINEL_CLOSE"
