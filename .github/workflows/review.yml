@@ -32,6 +32,11 @@ on:
         required: false
         type: string
         default: ''
+      comment_id:
+        description: 'Numeric id of the triggering comment, for issue_comment events. Used to react with a 👍 on success.'
+        required: false
+        type: string
+        default: ''
       installation_id:
         description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
         required: true
@@ -94,4 +99,5 @@ jobs:
             --repo         "${{ inputs.repo }}" \
             --pr           "${{ inputs.pr_number }}" \
             --actor        "${{ inputs.actor }}" \
-            --comment-body "${{ inputs.comment_body }}"
+            --comment-body "${{ inputs.comment_body }}" \
+            --comment-id   "${{ inputs.comment_id }}"

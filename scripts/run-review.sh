@@ -67,6 +67,7 @@ REPO=""
 PR=""
 ACTOR=""
 COMMENT_BODY=""
+COMMENT_ID=""
 BOT_LOGIN="${RTL_BOT_LOGIN:-rtlreview[bot]}"
 
 while (( $# > 0 )); do
@@ -77,6 +78,7 @@ while (( $# > 0 )); do
     --pr)           PR="$2"; shift 2 ;;
     --actor)        ACTOR="$2"; shift 2 ;;
     --comment-body) COMMENT_BODY="$2"; shift 2 ;;
+    --comment-id)   COMMENT_ID="$2"; shift 2 ;;
     --bot-login)    BOT_LOGIN="$2"; shift 2 ;;
     *) die "unknown argument: $1" parse_args ;;
   esac
@@ -191,6 +193,7 @@ case "$EVENT_NAME" in
 
     exec "$HANDLER" --repo "$REPO" --pr "$PR" --actor "$ACTOR" \
                     --bot-login "$BOT_LOGIN" \
+                    ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
                     ${CMD_ARGS:+--args "$CMD_ARGS"}
     ;;
 

@@ -5,6 +5,70 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-01
+
+State-management command handlers — the first half of M6. The four
+non-Claude-invoking commands (`stop`, `pause`, `resume`, `dismiss`) and
+the PR-close cleanup handler are now real instead of "not yet
+implemented" stubs. Smoke testing on a sandbox PR is the natural next
+step before tagging v0.7.0 with the Claude-invoking handlers
+(`re-review`, `explain`).
+
+### Added
+- Shared shell libraries:
+  - `scripts/lib/comment-ops.sh` — source-only helpers for posting,
+    editing, reacting to, and replying to GitHub PR comments. Replaces
+    inlined `gh api` blocks across handlers.
+  - `scripts/lib/labels.sh` — `add_label`, `remove_label`, `has_label`.
+- `scripts/handlers/handle-stop.sh` — full FR `/rtl stop` flow. Removes
+  `rtl-active` and `rtl-paused`. The metadata marker is left intact.
+- `scripts/handlers/handle-pause.sh` — full `/rtl pause` flow. Adds
+  `rtl-paused` while leaving `rtl-active` in place. Re-reviews are
+  suppressed while paused.
+- `scripts/handlers/handle-resume.sh` — full `/rtl resume` flow.
+- `scripts/handlers/handle-dismiss.sh` — full `/rtl dismiss <id>
+  [reason]` flow. Reads marker, validates id, appends to
+  `dismissed_findings`, writes marker. If the finding has an
+  `inline_comment_id`, also edits the original inline comment to prepend
+  a dismissal banner so readers see the dismissal alongside the
+  original concern.
+- `scripts/handlers/handle-close.sh` — full PR-close cleanup. Strips
+  labels and appends a terminal record (`closed_at`, `merged`) to the
+  marker.
+- `--comment-id` plumbing: `.github/workflows/review.yml` accepts a new
+  `comment_id` input; `run-review.sh` forwards it to handlers via
+  `--comment-id`. Used so state-management handlers can react (👍) on
+  the triggering comment.
+- bats coverage for each new handler under `tests/unit/handle-*.bats`.
+
+### Changed
+- Marker schema bumped to `version: "1.1"`. Each finding now includes
+  `body` (verbatim Claude finding text) and `inline_comment_id` (the
+  GitHub comment ID assigned when the review was posted, or `null` if
+  the finding was demoted to the body). v0.7.0's re-review and explain
+  handlers will rely on both; v0.6.0's dismiss already uses
+  `inline_comment_id` for the inline-edit UX.
+- `scripts/post-review.sh` now follows the review POST with a GET on
+  `/pulls/N/reviews/<id>/comments` to retrieve the assigned comment
+  ids. Returns a `finding_comment_ids` map (`{F1: 12345, ...}`) in its
+  output JSON. Failure of this follow-up call is non-fatal — the
+  review is still posted, the marker just records `null` ids.
+- `scripts/handlers/handle-review.sh` now writes `body` and
+  `inline_comment_id` per finding into the marker.
+- Per-handler success UX: 👍 reaction on the triggering comment via the
+  new `--comment-id` plumbing. Errors continue to post visible
+  explanatory comments. Net effect: routine state-management commands
+  no longer add comment-thread noise.
+- `docs/commands.md`: per-command details for `stop`/`pause`/`resume`/
+  `dismiss`/`close` updated from "(stub)" framing to actual behavior.
+
+### Notes
+- Markers written by v0.5.x lack `body` and `inline_comment_id`. v0.6.0
+  handlers tolerate the missing fields gracefully — `dismiss` still
+  works against an old marker, the inline-edit step just no-ops.
+- Re-review and explain handlers remain stubs in v0.6.0; they ship in
+  v0.7.0.
+
 ## [0.5.5] — 2026-05-01
 
 Pivot re-review trigger from the GitHub "Re-request review" UI button to

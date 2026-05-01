@@ -301,14 +301,60 @@ REVIEW_ID="$(jq -er '.id'       "$POST_FILE" 2>/dev/null)" \
 REVIEW_URL="$(jq -er '.html_url' "$POST_FILE" 2>/dev/null)" \
   || die "review response missing .html_url" parse_response
 
+# ---------------------------------------------------------------------------
+# Look up the inline comment IDs the API assigned. The POST /reviews
+# response does not include the comments array; we have to GET them in a
+# follow-up call. We then build a map { "F1": <comment_id>, ... } by
+# parsing each comment's body — our format `**F<n> (severity)...` makes
+# this unambiguous. Findings that were demoted to the body get no entry.
+#
+# If this lookup fails, downstream consumers (handle-review.sh writing
+# the marker) just see an empty map and store inline_comment_id=null per
+# finding. The review itself is already posted; we never roll that back
+# on a follow-up failure.
+# ---------------------------------------------------------------------------
+
+FINDING_COMMENT_IDS='{}'
+COMMENTS_FILE="$WORK/review_comments.json"
+
+if (( INLINE_COUNT > 0 )); then
+  if gh api --paginate \
+       "repos/${REPO}/pulls/${PR}/reviews/${REVIEW_ID}/comments" \
+       >"$COMMENTS_FILE" 2>"$ERR_FILE"; then
+    FINDING_COMMENT_IDS="$(jq -s '
+      (add // [])
+      | map(select(.body | test("^\\*\\*F[0-9]+")))
+      | map({
+          key:   (.body | capture("^\\*\\*(?<id>F[0-9]+)") | .id),
+          value: .id
+        })
+      | from_entries
+    ' "$COMMENTS_FILE")"
+  else
+    err="$(tr '\n' ' ' <"$ERR_FILE" 2>/dev/null || true)"
+    log warn post_review comment_id_lookup_failed "$(jq -cn --arg e "$err" '{message:$e}')"
+  fi
+fi
+
 jq -cn \
-  --argjson id        "$REVIEW_ID" \
-  --arg     url       "$REVIEW_URL" \
-  --argjson inline    "$INLINE_COUNT" \
-  --argjson demoted   "$DEMOTED_COUNT" \
-  --argjson fallback  "$FALLBACK" \
-  '{review_id:$id, review_url:$url, inline_count:$inline, demoted_count:$demoted, fallback:$fallback}'
+  --argjson id                   "$REVIEW_ID" \
+  --arg     url                  "$REVIEW_URL" \
+  --argjson inline               "$INLINE_COUNT" \
+  --argjson demoted              "$DEMOTED_COUNT" \
+  --argjson fallback             "$FALLBACK" \
+  --argjson finding_comment_ids  "$FINDING_COMMENT_IDS" \
+  '{
+    review_id:           $id,
+    review_url:          $url,
+    inline_count:        $inline,
+    demoted_count:       $demoted,
+    fallback:            $fallback,
+    finding_comment_ids: $finding_comment_ids
+  }'
 
 log info post_review success "$(jq -cn \
-  --argjson id "$REVIEW_ID" --argjson inline "$INLINE_COUNT" --argjson demoted "$DEMOTED_COUNT" \
-  '{review_id:$id, inline_count:$inline, demoted_count:$demoted}')"
+  --argjson id "$REVIEW_ID" \
+  --argjson inline "$INLINE_COUNT" \
+  --argjson demoted "$DEMOTED_COUNT" \
+  --argjson cmap "$FINDING_COMMENT_IDS" \
+  '{review_id:$id, inline_count:$inline, demoted_count:$demoted, comment_ids:($cmap|length)}')"

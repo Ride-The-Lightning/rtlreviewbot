@@ -417,25 +417,34 @@ fi
 NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 HEAD_SHA="$(jq -r '.pr.head_sha' "$CTX_FILE")"
 
+# Pull the finding-id → inline-comment-id map produced by post-review.sh.
+# Empty object is the sane default when the review was posted body-only
+# (FALLBACK=true) or when the post-review comment-id lookup failed.
+COMMENT_IDS="$(jq -c '.finding_comment_ids // {}' "$POST_FILE")"
+
 jq -n \
   --arg sha           "$HEAD_SHA" \
   --arg now           "$NOW" \
   --arg skill_version "$SKILL_VERSION" \
   --arg model         "$MODEL" \
   --slurpfile parsed  "$PARSED_FILE" \
+  --argjson cids      "$COMMENT_IDS" \
   '{
-    version:           "1.0",
+    version:           "1.1",
     last_reviewed_sha: $sha,
     last_reviewed_at:  $now,
     skill_version:     $skill_version,
     model:             $model,
     findings:          ($parsed[0].findings
-                          | map({
-                              id, severity,
-                              status: "unresolved",
-                              path:   (.path // null),
-                              line:   (.line // null),
-                              first_raised_sha: $sha
+                          | map(. as $f | {
+                              id:                $f.id,
+                              severity:          $f.severity,
+                              status:            "unresolved",
+                              path:              ($f.path // null),
+                              line:              ($f.line // null),
+                              body:              ($f.body // ""),
+                              inline_comment_id: ($cids[$f.id] // null),
+                              first_raised_sha:  $sha
                             })),
     dismissed_findings: []
   }' > "$STATE_FILE"

@@ -77,7 +77,12 @@ than re-issuing `/rtl review`.
 
 Removes the `rtl-active` label (and `rtl-paused`, if set). The bot will
 post no further reviews on this PR unless a maintainer issues `/rtl review`
-again.
+again. The metadata marker comment is left intact as the historical
+audit record.
+
+Implemented in v0.6.0. The success path is acknowledged with a 👍
+reaction on the triggering `/rtl stop` comment; errors get a visible PR
+comment.
 
 ### `/rtl pause` / `/rtl resume`
 
@@ -87,13 +92,18 @@ acknowledged but no-op until `/rtl resume`. `/rtl resume` removes
 `rtl-paused`.
 
 Use when a PR is undergoing rapid churn and the author doesn't want
-intermediate reviews.
+intermediate reviews. Implemented in v0.6.0. Both commands acknowledge
+success with a 👍 reaction on the triggering comment.
 
-### `/rtl dismiss <id>`
+### `/rtl dismiss <id> [reason]`
 
 Tells the bot to stop flagging the given finding on subsequent reviews.
 The dismissal is recorded in the PR's metadata marker comment
-(`dismissed_findings`) so it survives across re-reviews.
+(`dismissed_findings`) so it survives across re-reviews; if the original
+finding was posted as an inline comment, the bot also edits that comment
+in place to prepend a dismissal banner (`> 🚫 Dismissed by @maintainer
+— reason`) so anyone reading the PR thread later sees the dismissal next
+to the original concern.
 
 Finding IDs (`F1`, `F2`, …) appear in the bot's review comments. Authors
 **cannot** dismiss findings on their own PRs — that would let an author
@@ -101,7 +111,10 @@ silence the bot on their own code. An author who disagrees with a finding
 can reply with a normal comment or use `/rtl explain <id>` to ask for
 more reasoning.
 
-Example: `/rtl dismiss F3`
+Example: `/rtl dismiss F3 false positive — see issue #234`
+
+Implemented in v0.6.0. Acknowledged with a 👍 reaction; failures (unknown
+id, already dismissed, marker missing) post a visible explanatory comment.
 
 ### `/rtl explain <id>`
 
@@ -130,7 +143,7 @@ post a brief acknowledgement instead of a fresh review.
 
 | Trigger | Source | Behavior |
 |---|---|---|
-| PR closed / merged | system event | Auto-deactivates: removes `rtl-active` and `rtl-paused`, records final status in the metadata marker. |
+| PR closed / merged | system event | Auto-deactivates: removes `rtl-active` and `rtl-paused`, appends a terminal record (`closed_at`, `merged`) to the metadata marker. Silent — no comment posted. Implemented in v0.6.0. |
 
 > The reusable workflow also listens for `pull_request` `review_requested`
 > events for forward-compatibility, but they currently do not fire for the

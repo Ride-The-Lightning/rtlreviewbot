@@ -6,16 +6,11 @@ the design before any production deployment.
 
 ## Status
 
-**v0.5.5 — first end-to-end-capable release, smoke-tested.** The `/rtl
-review` flow is wired top to bottom: the dispatcher authenticates as the
-App, parses the command, gates on maintainer permission, fetches PR
-context, invokes the `code-review` skill (with API-key → OAuth-token
-auth fallback), parses the structured output, posts a formal review,
-applies the `rtl-active` label, and writes the metadata marker. Smoke-
-tested against a real sandbox PR. Other commands (`stop`, `pause`,
-`resume`, `dismiss`, `explain`, `re-review`, plus PR-close cleanup)
-route correctly but reply with a "not yet implemented" comment — full
-implementations land in subsequent milestones.
+**v0.6.0 — state-management commands implemented.** The `/rtl review`
+flow has been smoke-tested end-to-end (v0.5.0 → v0.5.5). v0.6.0 wires
+up the four non-Claude-invoking commands (`stop`, `pause`, `resume`,
+`dismiss`) and the PR-close cleanup. `re-review` and `explain` —
+the two Claude-invoking commands — remain stubs and ship in v0.7.0.
 
 GitHub App is registered (`rtlreview`, App ID 3524153). Re-reviews are
 driven by the `/rtl re-review` comment command (GitHub's native
