@@ -10,7 +10,7 @@
 #
 # Defaults:
 #   --bot-login        rtlreview[bot]   (the rtlreviewbot App's bot user)
-#   --max-diff-chars   200000           (overridable via $RTL_MAX_DIFF_CHARS)
+#   --max-diff-chars   300000           (overridable via $RTL_MAX_DIFF_CHARS)
 #
 # Output (stdout, single JSON object):
 #   {
@@ -82,7 +82,7 @@ die() {
 REPO=""
 PR=""
 BOT_LOGIN="${RTL_BOT_LOGIN:-rtlreview[bot]}"
-MAX_DIFF_CHARS="${RTL_MAX_DIFF_CHARS:-200000}"
+MAX_DIFF_CHARS="${RTL_MAX_DIFF_CHARS:-300000}"
 
 while (( $# > 0 )); do
   case "$1" in
