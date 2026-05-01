@@ -110,12 +110,24 @@ jobs:
           # out cleanly.
           ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.claude_code_oauth_token }}
+          # All inputs flow through env, not direct ${{ … }} substitution
+          # into the run-script body. Substituting user-controlled content
+          # (especially comment_body) into shell text triggers backtick
+          # command-substitution and parenthesis subshell parsing — both a
+          # crash hazard and a shell-injection surface.
+          INPUT_EVENT_NAME:    ${{ inputs.event_name }}
+          INPUT_EVENT_ACTION:  ${{ inputs.event_action }}
+          INPUT_REPO:          ${{ inputs.repo }}
+          INPUT_PR_NUMBER:     ${{ inputs.pr_number }}
+          INPUT_ACTOR:         ${{ inputs.actor }}
+          INPUT_COMMENT_BODY:  ${{ inputs.comment_body }}
+          INPUT_COMMENT_ID:    ${{ inputs.comment_id }}
         run: |
           rtlreviewbot/scripts/run-review.sh \
-            --event-name   "${{ inputs.event_name }}" \
-            --event-action "${{ inputs.event_action }}" \
-            --repo         "${{ inputs.repo }}" \
-            --pr           "${{ inputs.pr_number }}" \
-            --actor        "${{ inputs.actor }}" \
-            --comment-body "${{ inputs.comment_body }}" \
-            --comment-id   "${{ inputs.comment_id }}"
+            --event-name   "$INPUT_EVENT_NAME" \
+            --event-action "$INPUT_EVENT_ACTION" \
+            --repo         "$INPUT_REPO" \
+            --pr           "$INPUT_PR_NUMBER" \
+            --actor        "$INPUT_ACTOR" \
+            --comment-body "$INPUT_COMMENT_BODY" \
+            --comment-id   "$INPUT_COMMENT_ID"
