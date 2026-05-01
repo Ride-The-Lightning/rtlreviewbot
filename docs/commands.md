@@ -119,25 +119,37 @@ id, already dismissed, marker missing) post a visible explanatory comment.
 ### `/rtl explain <id>`
 
 Asks the bot to elaborate on a specific finding — its reasoning, severity,
-and any rule references. Posts a reply on the relevant inline comment;
-does not trigger a new review.
+and any rule references. Posts a reply on the original inline comment if
+one exists; otherwise as a top-level PR comment with a "(re: F<id>)"
+preamble. Does not trigger a new review.
 
 Example: `/rtl explain F3`
+
+Implemented in v0.7.0. Acknowledged with a 👍 reaction on the triggering
+comment. Errors (unknown id, dismissed id, marker missing, Claude
+failure) post a visible explanatory comment instead.
 
 ### `/rtl re-review`
 
 The canonical way to re-review a PR against current HEAD after the
 author has pushed changes. The bot acknowledges what was addressed
-since the prior review, restates anything still unresolved, and adds
-new findings introduced by the new commits.
+since the prior review, restates anything still unresolved, marks any
+findings it now thinks were wrong as `withdrawn`, and adds new findings
+introduced by the new commits. The metadata marker is merged so finding
+IDs are stable across re-reviews and dismissed findings stay dismissed.
 
 GitHub's native "Re-request review" UI button does not target GitHub
 App reviewers (the API silently rejects App accounts on the requested-
 reviewers endpoint), so this comment command is the supported re-review
 path. Every successful `/rtl review` ends with a CTA pointing at it.
 
-A 5-minute rate limit applies per PR — runs more frequent than that
-post a brief acknowledgement instead of a fresh review.
+If `marker.last_reviewed_sha == pr.head_sha` (no new commits since the
+prior review), the bot short-circuits with "No new commits since last
+review — findings still stand." rather than burning a Claude call.
+
+Implemented in v0.7.0. Maintainer-only. No rate limit (the 5-minute
+limit in earlier specs was attached to the now-defunct UI-button
+trigger).
 
 ## Other triggers (not comment commands)
 

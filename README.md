@@ -6,11 +6,14 @@ the design before any production deployment.
 
 ## Status
 
-**v0.6.0 — state-management commands implemented.** The `/rtl review`
-flow has been smoke-tested end-to-end (v0.5.0 → v0.5.5). v0.6.0 wires
-up the four non-Claude-invoking commands (`stop`, `pause`, `resume`,
-`dismiss`) and the PR-close cleanup. `re-review` and `explain` —
-the two Claude-invoking commands — remain stubs and ship in v0.7.0.
+**v0.7.0 — full command surface implemented.** Every `/rtl <command>`
+documented in [`docs/commands.md`](docs/commands.md) now has a real
+handler:
+
+- `/rtl review` (v0.5.0, smoke-tested v0.5.5)
+- `/rtl stop`, `/rtl pause`, `/rtl resume`, `/rtl dismiss <id> [reason]`,
+  PR-close cleanup (v0.6.0)
+- `/rtl re-review`, `/rtl explain <id>` (v0.7.0)
 
 GitHub App is registered (`rtlreview`, App ID 3524153). Re-reviews are
 driven by the `/rtl re-review` comment command (GitHub's native

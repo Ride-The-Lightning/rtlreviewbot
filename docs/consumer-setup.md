@@ -206,7 +206,7 @@ jobs:
   review:
     # issue_comment fires for any issue. Filter to PR comments only.
     if: ${{ github.event_name != 'issue_comment' || github.event.issue.pull_request != null }}
-    uses: Ride-The-Lightning/rtlreviewbot/.github/workflows/review.yml@v0.5.0
+    uses: Ride-The-Lightning/rtlreviewbot/.github/workflows/review.yml@v0.7.0
     with:
       event_name:      ${{ github.event_name }}
       event_action:    ${{ github.event.action }}
@@ -215,8 +215,9 @@ jobs:
         ${{ github.event.issue.number || github.event.pull_request.number }}
       actor:           ${{ github.event.sender.login }}
       comment_body:    ${{ github.event.comment.body }}
+      comment_id:      ${{ github.event.comment.id }}
       installation_id: 127679607          # see Part 2 Step 1
-      ref:             v0.5.0             # pin to a release tag in production
+      ref:             v0.7.0             # pin to a release tag in production
     secrets:
       app_id:                  ${{ secrets.GATEWAY_APP_ID }}
       private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
@@ -232,8 +233,13 @@ Notes:
 
 - **Pin the `uses:` ref and `ref:` input to the same release tag.** They
   both control which version of rtlreviewbot runs; mismatched values
-  cause subtle drift. The example uses `v0.5.0` as a placeholder — pin
+  cause subtle drift. The example uses `v0.7.0` as a placeholder — pin
   to whatever tag matches the rtlreviewbot release you're consuming.
+- **`comment_id` is required for reaction-based UX.** The state-management
+  commands (`/rtl pause`/`resume`/`stop`/`dismiss`) acknowledge success
+  with a 👍 reaction on the triggering comment. If `comment_id` is empty
+  the reaction is silently skipped — the command still works, but you
+  lose the visual feedback.
 - **`installation_id`** is the consumer-repo-specific App installation
   ID from Part 2 Step 1. It's not a secret — the architecture primer
   explains why; treat it as a hard-coded literal in the shim.

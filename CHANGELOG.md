@@ -5,6 +5,60 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-05-01
+
+Claude-invoking command handlers — the second half of M6. `/rtl
+re-review` and `/rtl explain` are now real instead of stubs. Combined
+with the v0.6.0 state-management handlers, every documented `/rtl <cmd>`
+in `docs/commands.md` is now implemented.
+
+### Added
+- `scripts/lib/invoke-claude.sh` — source-only library with the auth-
+  fallback (api → oauth) Claude invocation loop. Two public functions:
+  - `invoke_claude_for_review` — for handlers that produce a structured
+    review (parser-as-oracle: success requires both exit 0 and parser
+    acceptance). Used by `handle-review.sh` and `handle-re-review.sh`.
+  - `invoke_claude_raw` — for handlers that produce plain markdown
+    text. Success requires exit 0, non-empty output (≥50 bytes), and
+    that the output does not match a known soft-failure pattern
+    ("Credit balance is too low", rate-limit messages, invalid-key
+    messages). Used by `handle-explain.sh`.
+- `scripts/handlers/handle-explain.sh` — full FR-5 flow. Reads the
+  marker, validates the finding id, fetches PR context, injects a
+  `target_finding` block, invokes Claude, posts the response. If the
+  finding has an `inline_comment_id`, the response goes as a reply on
+  the original inline thread; otherwise as a top-level PR comment with
+  a "(re: F<id>)" preamble.
+- `scripts/handlers/handle-re-review.sh` — full FR-2 flow. Preconditions
+  (open / rtl-active / not paused / marker exists). HEAD-SHA short-
+  circuit when nothing has changed since the last review. Fetches PR
+  context, injects the `prior` block from the marker, invokes Claude,
+  posts the formal review (post-review handles status-aware body
+  composition), merges the marker (prior-finding fields preserved with
+  status updates from the parser; new findings appended with current
+  HEAD as `first_raised_sha`; dismissed_findings carry over).
+- bats coverage for both new handlers under
+  `tests/unit/handle-explain.bats` and `tests/unit/handle-re-review.bats`.
+
+### Changed
+- `scripts/handlers/handle-review.sh` refactored to use
+  `invoke_claude_for_review` from the new lib. The script is ~100 lines
+  shorter; behavior is unchanged.
+- `docs/consumer-setup.md` Step 3 shim example: documents the
+  `comment_id` input that v0.6.0 added (carryover — older shims that
+  omit it lose the 👍-reaction UX but otherwise still work). Pinned
+  refs bumped to `v0.7.0`.
+- `docs/commands.md` per-command details for `re-review` and `explain`
+  updated from stub framing to actual behavior.
+
+### Notes
+- The reusable workflow accepts the same auth secrets and inputs as
+  v0.6.0; no consumer-shim changes are required to consume v0.7.0
+  beyond bumping the pinned ref.
+- `handle-rerequest.sh` (the listener for the never-firing
+  `pull_request review_requested` event) remains a silent no-op; the
+  `/rtl re-review` comment command is the supported re-review path.
+
 ## [0.6.0] — 2026-05-01
 
 State-management command handlers — the first half of M6. The four
