@@ -52,6 +52,7 @@ auto-triggered on every PR.
 | `scripts/handlers/` | One script per supported `/rtl` command |
 | `config/defaults.yml` | Default configuration (overridable per consumer repo) |
 | `tests/{unit,integration,fixtures}/` | bats unit tests, integration suite, sample data |
+| `templates/rtlreviewbot.yml` | Canonical consumer workflow shim (drop into `.github/workflows/` of any consuming repo) |
 | `docs/` | Setup guide, command reference, architecture, troubleshooting |
 
 ## Onboarding a repo

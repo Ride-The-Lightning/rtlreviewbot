@@ -5,6 +5,23 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- `templates/rtlreviewbot.yml` — canonical consumer workflow shim,
+  ready to drop into `.github/workflows/` of any consuming repo. Two
+  placeholders to customize: the `@<TAG>` pin on the `uses:` line and
+  the numeric `installation_id`. Closes M7.2.
+- `docs/consumer-setup.md` Part 2 Step 5 — "Verify the integration"
+  walkthrough covering the expected first-`/rtl review` flow, the
+  three most common first-time failures (auth, installation_id
+  mismatch, diff-size ceiling), and a pointer at `docs/commands.md`
+  for the rest of the `/rtl` surface. Closes the test-step gap in M7.1.
+
+### Changed
+- `docs/consumer-setup.md` Step 3 example pin bumped from `@v0.8.0` to
+  `@v0.9.0` and now references `templates/rtlreviewbot.yml` as the
+  canonical source for the YAML.
+- `README.md` layout table picks up the new `templates/` entry.
+
 ## [0.9.0] — 2026-05-01
 
 ### Added

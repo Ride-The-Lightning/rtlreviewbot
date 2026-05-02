@@ -180,9 +180,10 @@ add the consumer repo to the selected-repositories list.
 
 ### Step 3 — Add the workflow shim to the consumer repo
 
-Drop the following file at `.github/workflows/rtlreviewbot.yml` in the
-consumer repo. It catches the relevant GitHub events and calls the
-rtlreviewbot composite action.
+The canonical shim lives in this repo at
+[`templates/rtlreviewbot.yml`](../templates/rtlreviewbot.yml). Copy it
+to your repo at `.github/workflows/rtlreviewbot.yml` and customize the
+two placeholders (release tag pin and `installation_id`):
 
 ```yaml
 name: rtlreviewbot
@@ -209,7 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.8.0
+      - uses: Ride-The-Lightning/rtlreviewbot/.github/actions/review@v0.9.0
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
@@ -278,6 +279,37 @@ workflow with a deprecation warning as a soft-landing window.
 
 A consumer repo may add `.github/rtlreviewbot-config.yml` to override defaults
 from `config/defaults.yml`. Schema is documented in that file.
+
+### Step 5 — Verify the integration
+
+Once Steps 1-3 are in place and the workflow file is committed:
+
+1. Open (or pick) a PR with a small diff (under 300k characters).
+2. Comment `/rtl review` on the PR.
+3. Within ~30-60 seconds the bot should:
+   - Acknowledge the request (the workflow run appears under the
+     repo's Actions tab — look for the `rtlreviewbot` workflow).
+   - Post a formal review on the PR with verdict `COMMENT` or
+     `REQUEST_CHANGES` and (usually) one or more inline findings
+     anchored to specific lines. Severity is rendered as a leading
+     emoji per `🔴 blocker / 🟠 major / 🟡 minor / 🔵 nit`.
+   - Append a metadata marker comment (a hidden HTML-comment block
+     that drives `/rtl re-review`, `/rtl explain`, and `/rtl approve`).
+
+If nothing happens, check the workflow run logs in the Actions tab.
+The most common first-time failures are:
+
+- **Authentication errors** — the App credentials (`GATEWAY_APP_ID`,
+  `GATEWAY_PRIVATE_KEY`) are missing from the repo's secret scope or
+  the App is not installed on this repo. Re-do Steps 1-2.
+- **`installation_id` mismatch** — the value in the workflow shim
+  must match the App's installation id on *this* repo, not on the
+  org. Re-fetch from the URL in Step 1.
+- **Diff size ceiling** — the bot skips PRs whose diff exceeds 300k
+  characters with a polite skip-comment. Test on a smaller PR.
+
+Once `/rtl review` works, the rest of the `/rtl <command>` surface is
+documented in [`docs/commands.md`](commands.md).
 
 ---
 
