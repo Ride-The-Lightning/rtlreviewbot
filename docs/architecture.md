@@ -13,7 +13,7 @@ The bot is **advisory**, not a merge gate:
   does not invoke the LLM.)
 - The bot does not decide whether to merge.
 - The bot does not replace human review on critical paths
-  (consensus, cryptography, HTLC handling).
+  (consensus, cryptography, HTLC handling, etc.).
 
 ## Layered topology
 
