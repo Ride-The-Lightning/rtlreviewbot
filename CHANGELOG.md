@@ -6,6 +6,16 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `docs/architecture.md` — completed architecture doc replacing the
+  v0.1.0 placeholder. Covers the four-layer topology (App, this repo,
+  consumer repo, runner) plus Anthropic, the end-to-end execution
+  model on `/rtl review`, the PR state model and marker schema, the
+  finding lifecycle, the permission table, the security model
+  (App-token scope, fork safety, audit trail, loop prevention, shell-
+  injection hardening), the three LLM-invocation modes, and the
+  versioning / layout overview. Mermaid diagrams for topology
+  (graph), execution (sequenceDiagram), PR transitions (stateDiagram),
+  and finding lifecycle (stateDiagram). Closes M7.3.
 - `templates/rtlreviewbot.yml` — canonical consumer workflow shim,
   ready to drop into `.github/workflows/` of any consuming repo. Two
   placeholders to customize: the `@<TAG>` pin on the `uses:` line and
