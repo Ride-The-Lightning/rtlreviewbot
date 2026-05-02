@@ -138,9 +138,10 @@ OPEN_FINDINGS_JSON="$(jq -c '
   . as $marker
   | ([$marker.dismissed_findings[]?.id]) as $dismissed_ids
   | [$marker.findings[]?
+      | . as $f
       | (.status // "unresolved") as $s
       | select($s != "addressed" and $s != "withdrawn")
-      | select(($dismissed_ids | index(.id)) | not)
+      | select($dismissed_ids | index($f.id) | not)
     ]
 ' "$MARKER_FILE")"
 

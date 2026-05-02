@@ -39,7 +39,7 @@ STUB
   mkdir -p "$TEST_TMP/bin"
   cat > "$TEST_TMP/bin/gh" <<'STUB'
 #!/usr/bin/env bash
-{ printf 'GH:'; for a in "$@"; do printf ' %q' "$a"; done; printf '\n'; } >> "$TEST_TMP/call_log"
+echo "GH: $*" >> "$TEST_TMP/call_log"
 
 # Capture --input <file> payload for inspection.
 prev=""
