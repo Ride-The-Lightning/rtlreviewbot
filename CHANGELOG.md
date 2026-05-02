@@ -5,6 +5,8 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-05-01
+
 Composite-action refactor — packaging change so the rtlreviewbot repo
 can be re-privated. No functional change to `/rtl <command>` behavior.
 
@@ -25,6 +27,10 @@ can be re-privated. No functional change to `/rtl <command>` behavior.
   is no longer a top-level `secrets:` block; every value moves into
   `with:`. A migration table is included in Step 3. Pinned refs in the
   example bumped to `v0.8.0`.
+- `scripts/fetch-pr-context.sh` — `MAX_DIFF_CHARS` default bumped from
+  200000 to 300000. Per-run override via `RTL_MAX_DIFF_CHARS` or the
+  `--max-diff-chars` flag is unaffected. `config/defaults.yml` is still
+  unwired; reading it as authoritative is deferred to v0.9.0.
 
 ### Deprecated
 - `.github/workflows/review.yml` (the reusable workflow). It still
@@ -34,6 +40,19 @@ can be re-privated. No functional change to `/rtl <command>` behavior.
   this repo uses the consumer's `GITHUB_TOKEN`, which cannot read the
   repo once it is private — that is the underlying reason for the
   move.
+
+### Fixed
+- Workflow inputs are routed through the `env:` block instead of
+  substituted directly into the `run:` script body. Direct substitution
+  let any shell metacharacter in an input value (notably backticks and
+  parentheses inside `comment_body`) trigger command-substitution and
+  subshell parsing, crashing the run before `run-review.sh` could even
+  start its loop-prevention check. It also exposed a shell-injection
+  surface to anyone able to post a `/rtl` comment. Latent since v0.5.x;
+  surfaced when the v0.8.0 smoke run re-fired on a marker comment that
+  contained backtick-wrapped CSS selectors and `(...)` fragments.
+  Fixed in both `.github/actions/review/action.yml` and the deprecated
+  `.github/workflows/review.yml`.
 
 ### Notes
 - Migrating an existing consumer from v0.7.x to v0.8.0 is a workflow-
