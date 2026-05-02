@@ -34,6 +34,7 @@ with the single exception of the initial `/rtl review`.
 | `/rtl dismiss <id>` | maintainer | Stop flagging a specific finding |
 | `/rtl explain <id>` | anyone | Elaborate on a finding (no new review) |
 | `/rtl re-review` | maintainer | Re-review against current HEAD (the canonical re-review path — see invocation note above) |
+| `/rtl approve` | maintainer | Submit a formal `APPROVE` review when all prior findings are addressed/withdrawn |
 
 ## Recognition rules
 
@@ -150,6 +151,39 @@ review — findings still stand." rather than burning a Claude call.
 Implemented in v0.7.0. Maintainer-only. No rate limit (the 5-minute
 limit in earlier specs was attached to the now-defunct UI-button
 trigger).
+
+### `/rtl approve`
+
+Submits a formal `APPROVE` review on the PR with an LGTM-style summary
+body, *iff* the metadata marker passes three gates:
+
+1. The marker exists (i.e. `/rtl review` has run at least once).
+2. `marker.last_reviewed_sha` equals the PR's current `head.sha` —
+   nothing has landed since the bot last looked. If commits have been
+   pushed since the last review, the bot replies with a "run
+   `/rtl re-review` first" message instead of approving stale code.
+3. Every entry in `marker.findings` either has status `addressed` or
+   `withdrawn`, **or** appears in `marker.dismissed_findings`. Findings
+   with status `unresolved` or `partially_addressed` (and not dismissed)
+   block approval; the bot posts a list of what is still open.
+
+The approval handler is **deterministic** — it does not invoke the
+review skill. The body it posts is templated from the marker
+(`Findings recap` section listing each prior finding with its severity
+and current status, plus a `Dismissed` section if any). Because the
+verdict is decided by hard rules on the marker rather than by the LLM,
+there is no risk of a hallucinated approval.
+
+On success the marker is patched with `approved_by` and `approved_at`
+audit fields, the trigger comment receives a 👍 reaction, and the
+formal review is visible in the PR's review timeline like any human
+approval.
+
+Implemented in v0.9.0. Maintainer-only. **The bot's APPROVE counts as
+an approving review for branch-protection purposes** — if your repo
+requires N approving reviews, the bot's APPROVE counts toward N.
+Configure branch protection accordingly (e.g. require approvals from
+specific code-owners or human accounts) if that is not the intent.
 
 ## Other triggers (not comment commands)
 

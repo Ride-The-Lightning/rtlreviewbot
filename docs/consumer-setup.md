@@ -268,10 +268,11 @@ the `issue_comment.created` filter, the `permissions: contents: read`,
 and every input field name are unchanged. Replace the body of the
 shim's `jobs.review:` with the example above.
 
-The v0.7.x reusable workflow is retained for now and emits a
-deprecation warning at runtime; removal is planned for v0.9.0. v0.7.x
-pins are unaffected — they continue to reference the v0.7.x copy of
-the reusable workflow.
+The v0.7.x reusable workflow was removed in v0.9.0. Existing v0.7.x
+consumer pins continue to work because they reference the v0.7.x copy
+of the reusable workflow at the v0.7.x tag — but new consumers must
+use the composite-action shape above. v0.8.0 retained the reusable
+workflow with a deprecation warning as a soft-landing window.
 
 ### Step 4 — Optional per-repo configuration
 

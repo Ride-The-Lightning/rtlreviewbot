@@ -45,7 +45,7 @@ auto-triggered on every PR.
 
 | Path | Purpose |
 |---|---|
-| `.github/workflows/review.yml` | Reusable workflow — entry point invoked by consumer repos |
+| `.github/actions/review/action.yml` | Composite action — entry point invoked by consumer repos |
 | `.github/workflows/ci.yml` | Lint + unit tests for this repo |
 | `skills/code-review/` | Skill definition, prompts, and domain rules |
 | `scripts/` | Bash orchestration scripts (one per pipeline step) |

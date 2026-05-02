@@ -164,7 +164,7 @@ case "$EVENT_NAME" in
     }
 
     case "$CMD" in
-      review|dismiss|re-review)
+      review|dismiss|re-review|approve)
         is_maintainer || permission_denied "$CMD" "maintainer"
         ;;
       stop|pause|resume)

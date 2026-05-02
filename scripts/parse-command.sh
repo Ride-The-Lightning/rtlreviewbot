@@ -40,6 +40,7 @@ readonly KNOWN_COMMANDS=(
   dismiss
   explain
   re-review
+  approve
 )
 
 log() {

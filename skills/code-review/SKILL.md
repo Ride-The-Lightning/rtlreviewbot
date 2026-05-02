@@ -11,9 +11,16 @@ the rtlreviewbot orchestrator parses, posts as a formal GitHub review,
 and records in the PR's metadata marker.
 
 The skill does **not**:
-- approve PRs (no `APPROVE` verdict is ever produced)
+- produce an `APPROVE` verdict (the skill's verdict vocabulary is `REQUEST_CHANGES` / `COMMENT` only — see Verdict mapping below)
 - decide whether to merge
 - replace human review on critical paths (consensus, cryptography, HTLC handling)
+
+> **Note on approval.** The rtlreviewbot orchestrator can emit an `APPROVE`
+> review separately, via the maintainer-driven `/rtl approve` command (v0.9.0+).
+> That handler is deterministic and operates on the marker state — it does
+> not invoke this skill. The skill's "no APPROVE" constraint above still
+> holds: a `/rtl review` or `/rtl re-review` that runs the skill never
+> produces an approval, regardless of how many findings are addressed.
 
 ## Invocation modes
 

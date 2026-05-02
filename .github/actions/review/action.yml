@@ -1,9 +1,9 @@
 name: 'rtlreviewbot review'
 description: 'Run rtlreviewbot on a PR event and post the result. Invoked from a consumer repo''s workflow shim.'
 
-# This composite action is the v0.8.0+ entry point. It replaces the reusable
-# workflow at .github/workflows/review.yml, which is deprecated and will be
-# removed in v0.9.0. The composite shape is required so the consumer can
+# This composite action is the v0.8.0+ entry point. It replaced the
+# reusable workflow that previously lived at .github/workflows/review.yml
+# (removed in v0.9.0). The composite shape is required so the consumer can
 # fetch this action from a private rtlreviewbot repo via GitHub's runner
 # orchestration (which respects the action repo's same-org access setting),
 # instead of the reusable workflow's actions/checkout step that needed the

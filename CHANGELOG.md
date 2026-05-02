@@ -5,6 +5,47 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-05-01
+
+### Added
+- `/rtl approve` — maintainer-driven command that submits a formal
+  `APPROVE` review on the PR. The handler is **deterministic** (no
+  Claude call) and gates approval on three marker-derived checks:
+  - The marker must exist (i.e. `/rtl review` has run at least once).
+  - `marker.last_reviewed_sha` must equal the PR's current `head.sha` —
+    if commits have landed since the last review, the bot replies
+    "run `/rtl re-review` first" instead of approving stale code.
+  - Every entry in `marker.findings` must have status `addressed` or
+    `withdrawn`, or appear in `marker.dismissed_findings`. Findings
+    with status `unresolved` or `partially_addressed` (and not
+    dismissed) block approval; the handler posts the open list.
+  On success the marker gains `approved_by` and `approved_at` audit
+  fields, the trigger comment receives a 👍, and the formal APPROVE
+  shows up in the PR's review timeline. New files:
+  - `scripts/handlers/handle-approve.sh`
+  - `tests/unit/handle-approve.bats` (happy + each rejection path)
+- `approve` added to `scripts/parse-command.sh` `KNOWN_COMMANDS` and
+  to the maintainer-required dispatch group in `scripts/run-review.sh`.
+- `docs/commands.md` — full per-command writeup including the
+  branch-protection caveat (the bot's APPROVE counts toward
+  required-approvers gates; configure protection accordingly).
+
+### Changed
+- `skills/code-review/SKILL.md` — clarified the skill-vs-orchestrator
+  split: the skill itself still produces only `REQUEST_CHANGES` /
+  `COMMENT`; the orchestrator now emits `APPROVE` separately via the
+  new handler. The "no LGTM-only output" anti-pattern still applies
+  to skill output.
+
+### Removed
+- `.github/workflows/review.yml` — the deprecated reusable workflow
+  shipped in v0.5.x and soft-deprecated in v0.8.0. Consumers on v0.7.x
+  pins continue to work (their pin references the v0.7.x copy of the
+  file). New consumers must use the composite action at
+  `.github/actions/review` per `docs/consumer-setup.md` Part 2 Step 3.
+- `README.md` and `docs/consumer-setup.md` updated to reflect that
+  the composite action is now the only supported entry point.
+
 ## [0.8.1] — 2026-05-01
 
 ### Changed
