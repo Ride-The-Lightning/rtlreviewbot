@@ -202,8 +202,12 @@ BODY_TEXT="$(cat "$BODY_FILE")"
 # ---------------------------------------------------------------------------
 # Compose the review API payload.
 #
-# Inline comment body format: "**Fn (severity):** <body>" so the finding id
-# and severity are visible at a glance in the GitHub UI.
+# Inline comment body format: "<emoji> **Fn (severity):** <body>" so the
+# finding id and severity are visible at a glance in the GitHub UI.
+# Severity emoji: 🔴 blocker, 🟠 major, 🟡 minor, 🔵 nit. The emoji is
+# pure visual decoration; the textual severity word is still authoritative
+# for any programmatic consumer (and the comment-ID lookup below tolerates
+# the optional prefix).
 # ---------------------------------------------------------------------------
 
 inline_comments_json() {
@@ -213,7 +217,12 @@ inline_comments_json() {
       line: (.line | tonumber),
       side: "RIGHT",
       body: (
-        "**\(.id)"
+        ( if   .severity == "blocker" then "🔴 "
+          elif .severity == "major"   then "🟠 "
+          elif .severity == "minor"   then "🟡 "
+          elif .severity == "nit"     then "🔵 "
+          else "" end )
+        + "**\(.id)"
         + (if .severity then " (\(.severity))" else "" end)
         + (if .status   then " — \(.status)" else "" end)
         + ":** \(.body)"
@@ -305,8 +314,9 @@ REVIEW_URL="$(jq -er '.html_url' "$POST_FILE" 2>/dev/null)" \
 # Look up the inline comment IDs the API assigned. The POST /reviews
 # response does not include the comments array; we have to GET them in a
 # follow-up call. We then build a map { "F1": <comment_id>, ... } by
-# parsing each comment's body — our format `**F<n> (severity)...` makes
-# this unambiguous. Findings that were demoted to the body get no entry.
+# parsing each comment's body — our format `**F<n> (severity)...` (with
+# an optional emoji prefix added in v0.8.1) makes this unambiguous.
+# Findings that were demoted to the body get no entry.
 #
 # If this lookup fails, downstream consumers (handle-review.sh writing
 # the marker) just see an empty map and store inline_comment_id=null per
@@ -327,9 +337,9 @@ if (( INLINE_COUNT > 0 )); then
     parsed_map="$(jq -s '
       (add // [])
       | (if type == "array" then . else [] end)
-      | map(select((.body? // "") | test("^\\*\\*F[0-9]+")))
+      | map(select((.body? // "") | test("\\*\\*F[0-9]+")))
       | map({
-          key:   (.body | capture("^\\*\\*(?<id>F[0-9]+)") | .id),
+          key:   (.body | capture("\\*\\*(?<id>F[0-9]+)") | .id),
           value: .id
         })
       | from_entries

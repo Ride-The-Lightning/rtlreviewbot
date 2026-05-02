@@ -227,7 +227,7 @@ payload_comments() {
   [ "$status" -eq 0 ]
   payload_comments | jq -e '.[0].side == "RIGHT"' >/dev/null
   payload_comments | jq -e '.[0].line == 18 and (.[0].line | type == "number")' >/dev/null
-  payload_comments | jq -e '.[0].body | startswith("**F1 (major):**")' >/dev/null
+  payload_comments | jq -e '.[0].body | startswith("🟠 **F1 (major):**")' >/dev/null
 }
 
 @test "commit_id defaults to context.pr.head_sha" {

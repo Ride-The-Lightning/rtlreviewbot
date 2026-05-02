@@ -5,6 +5,18 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-05-01
+
+### Changed
+- Inline review comments now begin with a severity-coded emoji
+  (🔴 blocker, 🟠 major, 🟡 minor, 🔵 nit). The textual severity word is
+  retained right after — the emoji is purely visual triage. Body summary
+  / `prior status` listings and the `/rtl explain` reply are intentionally
+  unchanged in this release.
+- `scripts/post-review.sh` comment-ID lookup regex relaxed (drops the
+  `^` anchor) so it tolerates the new optional emoji prefix without a
+  hard-coded codepoint allowlist.
+
 ## [0.8.0] — 2026-05-01
 
 Composite-action refactor — packaging change so the rtlreviewbot repo
