@@ -69,6 +69,40 @@ flowchart LR
     GHAPI -.->|appears on| PR
 ```
 
+### Moving parts
+
+The five moving parts:
+
+1. **GitHub App (`gateway`)** — pure identity surface, registered
+   under `lightninglabs`. Mints short-lived installation tokens
+   (1 hour TTL, per-repo scope) that the runner uses to read PRs on
+   lnd, post reviews, and react to comments. No webhooks, no hosted
+   server.
+2. **`lightninglabs/gateway` repo (private)** — holds the composite
+   action consumers invoke, the orchestrator scripts that run inside
+   it, the LLM prompts, and the lnd-specific domain rules. Versioned
+   by git tags; lnd pins to a release tag.
+3. **lnd workflow shim** — a single workflow file at
+   `.github/workflows/gateway-review.yml` in `lightningnetwork/lnd`.
+   Triggers on `pull_request` and `issue_comment`, declares
+   `runs-on: [self-hosted, <lightninglabs-pool>]`, and invokes
+   `lightninglabs/gateway/.github/actions/review@<TAG>`. App
+   credentials and Claude API auth live as repo secrets on lnd.
+4. **Self-hosted runner pool (lightninglabs k8s cluster)** — the
+   piece that makes this architecture work. Runners sit inside
+   lightninglabs's trust boundary, so they can clone the private
+   `gateway` repo at job time with a mounted credential. From lnd's
+   CI perspective a runner is "just another runner"; from the
+   security perspective it is a private execution environment that
+   happens to read a public repo's PR.
+5. **Anthropic API** — the LLM endpoint. Reached by the Claude Code
+   CLI installed at the start of each workflow run. API key sourced
+   from the existing lightninglabs Claude-pods budget (see asks §4).
+
+There is **no hosted gateway service**. Every review runs inside a
+self-hosted runner job dispatched by lnd's GitHub Actions; the
+gateway repo is just the versioned source the runner pulls from.
+
 ### Auth surfaces involved
 
 | Credential | Purpose | Sensitivity |
