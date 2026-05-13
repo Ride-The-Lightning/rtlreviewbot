@@ -52,6 +52,11 @@ output verbatim:
     "max_chars":   <truncation threshold>
   },
   "files":           [{"path", "additions", "deletions", "status"}, ...],
+  "file_contents":   [{"path", "text", "char_count", "truncated",
+                       "binary", "skipped"}, ...],
+  "readme":          {"text", "char_count", "truncated"} | null,
+  "claude_md":       {"text", "char_count", "truncated"} | null,
+  "contributing_md": {"text", "char_count", "truncated"} | null,
   "comments":        [{"id", "user", "body", "created_at"}, ...],
   "review_comments": [{"id", "user", "body", "path", "line",
                        "in_reply_to_id", "created_at"}, ...],
@@ -61,6 +66,32 @@ output verbatim:
 
 The bot's own contributions are filtered out upstream — `comments`,
 `review_comments`, and `reviews` only contain non-bot activity.
+
+### `file_contents`
+
+Post-change (HEAD SHA) contents of each non-removed changed file, in the
+same order as `files`. Deleted files are omitted. Each entry has one of
+four shapes:
+
+- **Included**: `text` is a string with the file contents, `binary:false`,
+  `skipped:null`. If `truncated:true`, only the first `max_file_chars`
+  bytes are in `text`; `char_count` is the full file size, so the reviewer
+  knows how much was elided.
+- **Binary**: `text:null`, `binary:true`, `skipped:null`. The reviewer
+  should not attempt to read or quote a binary file.
+- **Budget exhausted**: `text:null`, `binary:false`, `skipped:"budget_exhausted"`.
+  The total `file_contents` cap was reached before this file. Reviewer
+  can still see the path and know it changed.
+- **Fetch failed**: `text:null`, `skipped:"fetch_failed"`. Usually a file
+  >1MB (above the contents API's inline limit) or a transient API
+  error. Treat as missing context, not as evidence of anything.
+
+### `readme`, `claude_md`, `contributing_md`
+
+The consumer repo's project docs at HEAD SHA, or `null` if the file is
+absent. These reflect the conventions of the repo *under review*, not the
+rtlreviewbot repo itself. `truncated:true` means the doc exceeded its
+per-doc cap and only the first N bytes are in `text`.
 
 **Re-review** additionally receives a `prior` field with the rtlreviewbot
 metadata marker contents:
@@ -192,9 +223,13 @@ These apply to all three modes:
 
 - **No fabrication.** Do not cite line numbers, file paths, or symbols
   that are not present in the input. Do not invent rule IDs.
-- **No speculation.** Only flag what the diff shows. If the answer
-  depends on code outside the diff, say so explicitly and downgrade
-  severity.
+- **No speculation outside the context.** Only flag what the diff, the
+  full file contents (`file_contents[]`), or the project docs (`readme`,
+  `claude_md`, `contributing_md`) show. If the answer depends on code in
+  a file that is not in `file_contents` (e.g. a file that wasn't touched,
+  or one elided as `budget_exhausted` / `fetch_failed`), say so
+  explicitly and downgrade severity. For a `binary` entry, treat the
+  file as opaque — never quote or reason about its contents.
 - **No restating the obvious.** "This function adds a parameter" is not
   a finding.
 - **No LGTM-only output.** If there are no findings, the Findings section

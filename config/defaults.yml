@@ -15,6 +15,24 @@ review:
   # approval. Concrete value will be set when the review pipeline lands.
   max_diff_chars: null
 
+  # Per-file cap on pre-fetched file contents (post-change text of each
+  # changed file, included alongside the diff to give the reviewer
+  # surrounding context). A file larger than this is truncated to the
+  # first max_file_chars bytes with truncated:true; char_count still
+  # reports the full size. Defaults applied in fetch-pr-context.sh.
+  max_file_chars: null
+
+  # Total cap across all pre-fetched file contents combined. When this
+  # is reached the remaining files get skipped:"budget_exhausted"
+  # markers (path visible, contents not loaded).
+  max_file_contents_chars: null
+
+  # Per-doc caps for the consumer repo's project docs included alongside
+  # the diff. Treated the same way as max_file_chars.
+  max_readme_chars:       null
+  max_claude_md_chars:    null
+  max_contributing_chars: null
+
   # Minimum severity that triggers REQUEST_CHANGES (vs COMMENT).
   # Allowed: blocker, major, minor, nit.
   request_changes_threshold: major

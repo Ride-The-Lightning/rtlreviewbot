@@ -8,6 +8,37 @@ in `SKILL.md` under "Input contract". You also have the rule files at
 `rules/lightning.md` and `rules/security.md`, and the rubric and tone
 guidance in `SKILL.md`.
 
+## Using the input context
+
+Beyond the diff, the input gives you the full post-change contents of
+each changed file (`file_contents[]`) plus three project docs from the
+consumer repo (`readme`, `contributing_md`, `claude_md`). Use them:
+
+- **`file_contents[]`** — read each hunk in `diff.text` first for *what
+  changed*, then consult the full file for *what surrounds the change*:
+  type definitions, sibling functions, imports, the body of a function
+  the diff merely calls into. This is the main lever against generic,
+  context-blind findings.
+- **`contributing_md`** — typically carries the project's review and
+  style conventions. When present, weight its conventions over generic
+  best practices for that repo.
+- **`readme`** — orients vocabulary and project goals. Useful on a repo
+  you haven't seen before.
+- **`claude_md`** — if present, the consumer repo's collaboration notes
+  for AI-assisted work. Treat as authoritative for repo-specific
+  preferences and ignore-this-class-of-issue guidance.
+
+A `null` doc means the consumer repo doesn't have that file. Don't
+synthesize one. Don't critique the project for not having a CLAUDE.md.
+
+A `file_contents` entry with `skipped:"budget_exhausted"` or
+`skipped:"fetch_failed"` means the path is visible but contents weren't
+loaded. If a concern depends on what's inside that file, say so and
+downgrade severity rather than guessing.
+
+A `binary:true` entry means the file is binary. Don't quote it. Don't
+treat its diff hunks as evidence of anything.
+
 ## Your task
 
 Produce a code review in the format defined in `SKILL.md` under

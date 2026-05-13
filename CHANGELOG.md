@@ -6,6 +6,27 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `scripts/fetch-pr-context.sh` — pre-fetched file contents and project
+  docs are now bundled into the JSON context handed to Claude alongside
+  the diff. The new `file_contents[]` array carries the post-change
+  (HEAD SHA) text of each non-removed changed file, each entry tagged
+  with `truncated` / `binary` / `skipped` markers so the skill can
+  reason about elisions instead of guessing. Three new top-level keys
+  (`readme`, `claude_md`, `contributing_md`) carry the consumer repo's
+  project docs at HEAD SHA, each `null` when the file is absent. Five
+  new caps (`--max-file-chars`, `--max-file-contents-chars`,
+  `--max-readme-chars`, `--max-claude-md-chars`,
+  `--max-contributing-chars`) bound the per-file and per-doc sizes and
+  the total file-contents budget; defaults are 50k / 600k / 20k×3,
+  overridable via the matching `RTL_MAX_*` env vars. `config/defaults.yml`
+  gains schema-only entries to document the caps. `SKILL.md` documents
+  the four new input fields and relaxes the "No speculation"
+  anti-pattern: the skill may now reason within `file_contents` and the
+  loaded docs, but must still downgrade severity for code outside that
+  context. Both prompts gain a "Using the input context" section that
+  explains when to consult full files vs hunks, and the re-review
+  prompt adds guidance to confirm `unresolved` prior findings against
+  the full file rather than just unchanged hunks. Closes #1.
 - `docs/architecture.md` — completed architecture doc replacing the
   v0.1.0 placeholder. Covers the four-layer topology (App, this repo,
   consumer repo, runner) plus Anthropic, the end-to-end execution

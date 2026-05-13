@@ -10,6 +10,33 @@ in `SKILL.md` under "Input contract".
 
 The rubric, tone, and anti-patterns in `SKILL.md` apply unchanged.
 
+## Using the input context
+
+Beyond the diff, the input gives you the full post-change contents of
+each changed file (`file_contents[]`) plus three project docs from the
+consumer repo (`readme`, `contributing_md`, `claude_md`). Use them:
+
+- **`file_contents[]`** — for each prior finding marked `unresolved`,
+  consult the full file to confirm the concern is genuinely still
+  present rather than just unchanged in the diff hunks. For new
+  findings, read each hunk for *what changed*, then the full file for
+  *what surrounds the change*.
+- **`contributing_md`** — when present, weight its conventions over
+  generic best practices.
+- **`readme`** — orients vocabulary and project goals.
+- **`claude_md`** — if present, authoritative for repo-specific
+  preferences and ignore-this-class-of-issue guidance.
+
+A `null` doc means the consumer repo doesn't have that file. Don't
+synthesize one.
+
+A `file_contents` entry with `skipped:"budget_exhausted"` or
+`skipped:"fetch_failed"` means the path is visible but contents weren't
+loaded. If a prior finding depended on that file, say the context is
+unavailable and downgrade confidence rather than guessing.
+
+A `binary:true` entry means the file is binary. Don't quote it.
+
 ## Your task
 
 Produce a re-review in the format below. There are four sections:
