@@ -6,6 +6,23 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- `skills/code-review/rules/rtl-multi-impl-parity.md` — procedural rules
+  file targeting the RTL consumer repo. RTL serves three Lightning
+  backends (LND, CLN, Eclair) via parallel `backend/{controllers,utils,
+  models,routes}/{lnd,cln,eclair}/` and `src/app/{lnd,cln,eclair}/`
+  trees, and the dominant bug class is silent parity drift when an
+  author fixes one impl and forgets the other two. The file gives the
+  bot a directory-layout reference, shared-vs-impl-specific
+  categorization buckets (channels/payments/invoices vs Loop/Boltz/
+  BOLT12/runes), a six-step review procedure (touched paths → sibling
+  paths → categorize → decide → frontend mirror check → shared-layer
+  inverse check), a comment template grouped by concept, and four
+  worked examples covering flag / do-not-flag / gray-area / shared-
+  utility. `SKILL.md` "Domain rules" now lists three rule files and
+  notes that procedural files (like this one) state their own scope and
+  apply only when the consumer repo matches. Both prompts
+  (`initial-review.md`, `re-review.md`) reference the new file in their
+  preamble.
 - `scripts/fetch-pr-context.sh` — pre-fetched file contents and project
   docs are now bundled into the JSON context handed to Claude alongside
   the diff. The new `file_contents[]` array carries the post-change

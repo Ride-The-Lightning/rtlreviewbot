@@ -191,10 +191,14 @@ count toward the verdict.
 
 The skill applies two layers of rules:
 
-1. **Domain-specific rules** — `rules/lightning.md` and `rules/security.md`.
-   These are authored by senior engineers and security reviewers; the bot
-   does not invent them. Each rule entry has a stable `<rule-id>` that
-   the bot references in finding text (e.g. "violates LN-RULE-007").
+1. **Domain-specific rules** — `rules/lightning.md`, `rules/security.md`,
+   and `rules/rtl-multi-impl-parity.md`. These are authored by senior
+   engineers and security reviewers; the bot does not invent them. Each
+   rule entry has a stable `<rule-id>` that the bot references in finding
+   text (e.g. "violates LN-RULE-007"). Some rules files are procedural
+   (e.g. `rtl-multi-impl-parity.md` defines a check rather than a numbered
+   rule list); those files state their own scope and trigger conditions
+   at the top, and apply only when the consumer repo matches.
 2. **General best practices** — used as a fallback when no specific rule
    applies. Standard concerns: error handling, resource management,
    concurrency safety, test coverage of new branches.

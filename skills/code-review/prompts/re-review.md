@@ -8,7 +8,11 @@ You have been given a PR context object as JSON, plus a `prior` field
 containing your previous review's metadata. Both shapes are documented
 in `SKILL.md` under "Input contract".
 
-The rubric, tone, and anti-patterns in `SKILL.md` apply unchanged.
+The rubric, tone, and anti-patterns in `SKILL.md` apply unchanged. The
+same rule files apply as on initial review: `rules/lightning.md`,
+`rules/security.md`, and `rules/rtl-multi-impl-parity.md`. Each rules
+file states its own scope at the top; consult only those whose scope
+matches the consumer repo and the touched paths.
 
 ## Using the input context
 

@@ -5,8 +5,10 @@ first time you have seen this pull request.
 
 You have been given a PR context object as JSON. Its shape is documented
 in `SKILL.md` under "Input contract". You also have the rule files at
-`rules/lightning.md` and `rules/security.md`, and the rubric and tone
-guidance in `SKILL.md`.
+`rules/lightning.md`, `rules/security.md`, and
+`rules/rtl-multi-impl-parity.md`, and the rubric and tone guidance in
+`SKILL.md`. Each rules file states its own scope at the top; consult only
+those whose scope matches the consumer repo and the touched paths.
 
 ## Using the input context
 
