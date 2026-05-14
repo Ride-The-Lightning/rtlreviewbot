@@ -5,6 +5,26 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- `scripts/post-review.sh` — per-finding hunk-range validation so one
+  out-of-hunk anchor no longer demotes every other finding. The script
+  previously only checked that a finding's path was in the diff; line
+  validity was deferred to GitHub, which rejects the entire review POST
+  if any one inline comment anchors outside a hunk. The fallback then
+  re-posted with all findings body-only, even the ones that would have
+  anchored. Observed on Ride-The-Lightning/RTL #1598 (run
+  25825650027): four findings, three citing lines inside hunk
+  `@@ +238,59 @@`, one citing line 221 in the unchanged stretch between
+  the two hunks → all four landed in the body. Now the script parses
+  `@@ +new_start,new_len @@` headers per file from `diff.text` into a
+  map of valid post-change line ranges and gates each finding
+  individually. When no hunks can be parsed (e.g. binary or rename-only
+  files, or contexts without `diff.text`) the gate soft-passes,
+  preserving today's path-only behavior. `SKILL.md` "Output contract"
+  gains a new "Anchoring inline findings to the diff" subsection that
+  spells out the constraint to the model: lines in unchanged stretches
+  are not anchorable even when `file_contents[]` lets you see them.
+
 ### Added
 - `skills/code-review/rules/rtl-multi-impl-parity.md` — procedural rules
   file targeting the RTL consumer repo. RTL serves three Lightning

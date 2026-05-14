@@ -186,6 +186,149 @@ payload_comments() {
 }
 
 # ---------------------------------------------------------------------------
+# Hunk-range validation
+#
+# A finding's line must fall inside a diff hunk on the post-change side for
+# it to anchor inline. When the context omits .diff.text the gate soft-passes
+# (preserving the path-only behavior used by every other test in this file).
+# These tests opt into the strict gate by seeding a realistic diff.
+# ---------------------------------------------------------------------------
+
+# write_ctx_with_diff <path> <files-json> <diff-text>
+# Replace the default ctx fixture with one that carries .diff.text so the
+# hunk-range gate activates.
+write_ctx_with_diff() {
+  local files_json="$1" diff_text="$2"
+  jq -n \
+    --argjson f "$files_json" \
+    --arg     d "$diff_text" \
+    '{pr: {number: 42, head_sha: "deadbeef"}, files: $f, diff: {text: $d}}' \
+    > "$TEST_TMP/ctx.json"
+}
+
+@test "finding inside a diff hunk anchors inline" {
+  write_ctx_with_diff '[{"path":"src/htlc.go","status":"modified"}]' \
+'diff --git a/src/htlc.go b/src/htlc.go
+--- a/src/htlc.go
++++ b/src/htlc.go
+@@ -200,7 +200,7 @@ ctx
+ a
+ b
+ c
+-old
++new
+ d
+ e
+ f
+'
+  run --separate-stderr post '{
+    "summary":"x",
+    "findings":[{"id":"F1","severity":"major","path":"src/htlc.go","line":203,"body":"in hunk"}],
+    "prior_findings":[], "new_findings":[],
+    "verdict":"COMMENT"
+  }'
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.inline_count == 1 and .demoted_count == 0' >/dev/null
+}
+
+@test "finding outside all hunks for its path is demoted" {
+  write_ctx_with_diff '[{"path":"src/htlc.go","status":"modified"}]' \
+'diff --git a/src/htlc.go b/src/htlc.go
+--- a/src/htlc.go
++++ b/src/htlc.go
+@@ -200,7 +200,7 @@ ctx
+ a
+ b
+ c
+-old
++new
+ d
+ e
+ f
+'
+  # Line 250 is in the file but not in the hunk range 200..206.
+  run --separate-stderr post '{
+    "summary":"x",
+    "findings":[{"id":"F1","severity":"major","path":"src/htlc.go","line":250,"body":"out of hunk"}],
+    "prior_findings":[], "new_findings":[],
+    "verdict":"COMMENT"
+  }'
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.inline_count == 0 and .demoted_count == 1' >/dev/null
+  echo "$output" | jq -e '.fallback == false' >/dev/null
+}
+
+@test "mixed batch: out-of-hunk demotes alone, in-hunk findings still anchor inline" {
+  # This is the PR 1598 scenario: four findings, one outside the hunk
+  # ranges. Previously the whole POST got rejected and all four ended up
+  # in the body. With the local hunk gate, only the out-of-hunk one demotes.
+  write_ctx_with_diff '[{"path":"src/htlc.go","status":"modified"}]' \
+'diff --git a/src/htlc.go b/src/htlc.go
+--- a/src/htlc.go
++++ b/src/htlc.go
+@@ -200,7 +200,7 @@ ctx
+ a
+ b
+ c
+-old
++new
+ d
+ e
+ f
+@@ -238,5 +238,59 @@ ctx
+ a
+ b
+ c
+ d
+ e
+'
+  run --separate-stderr post '{
+    "summary":"x",
+    "findings":[
+      {"id":"F1","severity":"major","path":"src/htlc.go","line":221,"body":"out of hunk"},
+      {"id":"F2","severity":"major","path":"src/htlc.go","line":253,"body":"in hunk 2"},
+      {"id":"F3","severity":"major","path":"src/htlc.go","line":287,"body":"in hunk 2"},
+      {"id":"F4","severity":"minor","path":"src/htlc.go","line":244,"body":"in hunk 2"}
+    ],
+    "prior_findings":[], "new_findings":[],
+    "verdict":"REQUEST_CHANGES"
+  }'
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.inline_count == 3 and .demoted_count == 1' >/dev/null
+  echo "$output" | jq -e '.fallback == false' >/dev/null
+  # The first payload should carry exactly the three in-hunk comments.
+  payload_comments | jq -e 'length == 3' >/dev/null
+  payload_comments | jq -e 'map(.body) | (any(test("F2"))) and (any(test("F3"))) and (any(test("F4")))' >/dev/null
+  payload_comments | jq -e 'map(.body) | any(test("F1")) | not' >/dev/null
+  # F1 ends up in the body under the "could not anchor inline" appendix.
+  jq -r '.body' "$TEST_TMP/payload_1.json" | grep -F 'F1'
+}
+
+@test "binary or rename-only file (no @@ hunks for path) soft-passes" {
+  # The path is in .files but the diff has no @@ headers for it (binary
+  # files, pure renames). The gate should not activate for that path.
+  write_ctx_with_diff '[{"path":"img/logo.png","status":"modified"}]' \
+'diff --git a/img/logo.png b/img/logo.png
+Binary files a/img/logo.png and b/img/logo.png differ
+diff --git a/src/htlc.go b/src/htlc.go
+--- a/src/htlc.go
++++ b/src/htlc.go
+@@ -10,3 +10,3 @@ ctx
+ a
+-old
++new
+'
+  run --separate-stderr post '{
+    "summary":"x",
+    "findings":[{"id":"F1","severity":"minor","path":"img/logo.png","line":1,"body":"soft pass"}],
+    "prior_findings":[], "new_findings":[],
+    "verdict":"COMMENT"
+  }'
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.inline_count == 1 and .demoted_count == 0' >/dev/null
+}
+
+# ---------------------------------------------------------------------------
 # Re-review handling
 # ---------------------------------------------------------------------------
 

@@ -153,6 +153,27 @@ For **re-review**, prior findings are reported separately under
 `## Prior findings`, and only the new findings appear under
 `## New findings`. See `prompts/re-review.md` for the exact shape.
 
+### Anchoring inline findings to the diff
+
+The `line=` attribute on each `<finding>` is what the orchestrator uses
+to post the finding as an inline review comment. GitHub only accepts
+inline anchors on lines that appear in a diff hunk on the post-change
+side: an added line (`+`) or a context line within an `@@ ... @@` block.
+Lines that exist in the file at HEAD but sit in an *unchanged stretch
+between hunks* are not anchorable, even when `file_contents[]` lets you
+see them.
+
+When citing a `line=`:
+
+- Prefer a line that is visible in `diff.text` for that path.
+- If the concern is anchored to surrounding code outside the hunk
+  (something you can only see via `file_contents[]`), name the path and
+  line in the finding body and pick the *nearest* in-hunk line as the
+  anchor — or omit `line=` entirely. Findings whose line falls outside
+  every hunk for the path will be demoted to the review body rather
+  than appearing inline, so the better the anchor, the more visible the
+  finding.
+
 ### Explain output
 
 Markdown text only. No `<finding>` tags, no verdict, no JSON. The output

@@ -130,13 +130,68 @@ PRIOR_STATUS="$(echo "$REVIEW" | jq -c '
 ')"
 
 # ---------------------------------------------------------------------------
-# Anchor validation. A finding can be inline iff its .path matches a file in
-# the diff whose status is not "removed". Line-level validity is left to the
-# GitHub API; if it rejects, we fall back to body-only.
+# Anchor validation.
+#
+# A finding can be inline iff:
+#   - its .path matches a file in the diff whose status is not "removed", and
+#   - its .line falls inside one of that file's diff hunks on the post-change
+#     (RIGHT) side.
+#
+# The hunk-range check catches the common case where the model cites a real
+# file/line in the post-change source but the line is in an unchanged stretch
+# *between* hunks. GitHub rejects the entire review POST if any one inline
+# comment anchors outside the diff, which previously demoted ALL findings via
+# the body-only fallback. Validating per-finding lets the bad anchor demote
+# alone and keeps the rest inline.
+#
+# Soft fallback: if no hunks could be parsed from the diff at all (e.g.
+# tests that omit .diff.text, or a binary/rename-only file with no @@
+# headers for the path), the per-finding line gate is skipped and we fall
+# back to the path-only check. GitHub will still reject impossible anchors
+# in that mode and the body-only fallback further down catches it.
 # ---------------------------------------------------------------------------
 
+DIFF_TXT="$WORK/diff.txt"
+jq -r '.diff.text // ""' "$CTX_FILE" > "$DIFF_TXT"
+
+HUNKS_TSV="$WORK/hunks.tsv"
+awk '
+  /^diff --git / { path = ""; next }
+  /^\+\+\+ / {
+    line = $0
+    sub(/^\+\+\+ /, "", line)
+    if (line == "/dev/null") { path = ""; next }
+    sub(/^[ab]\//, "", line)
+    path = line
+    next
+  }
+  /^@@ / {
+    if (path == "") next
+    # Field 3 is the +<start>[,<len>] token.
+    plus = $3
+    sub(/^\+/, "", plus)
+    n = split(plus, parts, ",")
+    start = parts[1] + 0
+    len   = (n >= 2) ? (parts[2] + 0) : 1
+    if (len > 0) {
+      end = start + len - 1
+      printf "%s\t%d\t%d\n", path, start, end
+    }
+  }
+' "$DIFF_TXT" > "$HUNKS_TSV"
+
+HUNKS_JSON="$(jq -Rs '
+  split("\n")
+  | map(select(. != ""))
+  | reduce .[] as $row ({};
+      ($row | split("\t")) as $p
+      | .[$p[0]] += [[($p[1]|tonumber), ($p[2]|tonumber)]]
+    )
+' "$HUNKS_TSV")"
+
 ANCHORED="$(jq -nc \
-  --argjson eff "$EFFECTIVE" \
+  --argjson eff   "$EFFECTIVE" \
+  --argjson hunks "$HUNKS_JSON" \
   --slurpfile ctx "$CTX_FILE" \
   '
   ( $ctx[0].files
@@ -144,12 +199,22 @@ ANCHORED="$(jq -nc \
     | map(.path)
   ) as $valid_paths
   |
+  # gate_active iff we parsed any hunks at all globally AND we have hunks
+  # for this specific path. Otherwise soft-pass on path match alone.
+  ($hunks | length > 0) as $any_hunks_parsed
+  |
   $eff
   | map(. as $f
+        | ($hunks[$f.path // ""] // []) as $hp
+        | (($any_hunks_parsed and ($hp | length) > 0)) as $gate
+        | (($hp | any(.[0] as $s | .[1] as $e
+                       | ($f.line // -1) >= $s and ($f.line // -1) <= $e)))
+          as $line_in_hunk
         | $f + {
             _anchored: ( $f.path != null
                          and $f.line != null
-                         and ($valid_paths | index($f.path) != null) )
+                         and ($valid_paths | index($f.path) != null)
+                         and (($gate | not) or $line_in_hunk) )
           })
   ')"
 
